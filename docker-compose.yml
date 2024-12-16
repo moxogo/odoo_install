@@ -15,6 +15,7 @@ services:
       - odoo-web-data:/var/lib/odoo
       - ./config:/etc/odoo:ro
       - ./addons:/mnt/extra-addons:ro
+      - ./moxogo18:/mnt/extra-addons/moxogo18
       - ./logs:/var/log/odoo
     expose:
       - "8069"
