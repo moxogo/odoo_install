@@ -1,26 +1,15 @@
-# Odoo 18 Docker Installation Guide
+# Odoo 18 Production Installation Guide
 
-This repository contains Docker configuration for running Odoo 18 in a production-ready environment with proper security settings and resource management.
+This repository contains a production-ready Odoo 18 setup using Docker with enhanced security features, monitoring, and automated deployment capabilities.
 
-## Prerequisites
+## System Requirements
 
-- Docker Engine (20.10.x or later)
-- Docker Compose V2 (2.x or later)
-- Git
-- 4GB RAM minimum (8GB recommended)
-- 10GB free disk space
-
-## Directory Structure
-
-```
-.
-├── addons/             # Custom and community addons
-├── config/             # Odoo configuration files
-├── logs/               # Odoo log files
-├── docker-compose.yml  # Docker compose configuration
-├── Dockerfile         # Odoo image build configuration
-└── .env               # Environment variables (create from .env.example)
-```
+- Ubuntu 20.04 LTS or later
+- Minimum 2 CPU cores
+- Minimum 4GB RAM (8GB recommended)
+- Minimum 20GB free disk space
+- Docker Engine 20.10.x or later
+- Docker Compose V2
 
 ## Quick Start
 
@@ -30,245 +19,207 @@ This repository contains Docker configuration for running Odoo 18 in a productio
    cd odoo_install
    ```
 
-2. Create and configure the environment file:
+2. Run the installation script:
    ```bash
-   cp .env.example .env
-   # Edit .env file with your settings
+   chmod +x install_production.sh
+   sudo ./install_production.sh
    ```
 
-3. Start the containers:
-   ```bash
-   docker compose up -d
-   ```
+## Detailed Installation Steps
 
-4. Access Odoo:
-   - Web Interface: http://localhost:8069
-   - Master password: Check your .env file
+### 1. Pre-Installation Checks
 
-## Configuration
+The installation script automatically performs these checks:
+- System requirements verification
+- Port availability (80, 443, 5432, 8069, 8072)
+- Existing services (Nginx, PostgreSQL)
+- Directory permissions
+- Docker installation
 
-### Environment Variables (.env)
+### 2. Security Features
 
-- `ODOO_DB_USER`: PostgreSQL user for Odoo
-- `ODOO_DB_PASSWORD`: PostgreSQL password
-- `POSTGRES_DB`: Default database name
-- `POSTGRES_PASSWORD`: PostgreSQL admin password
-- `ODOO_ADMIN_PASSWD`: Odoo master password
-
-### Resource Limits
-
-The docker-compose.yml includes resource limits for stability:
-- CPU: 2 cores maximum
-- Memory: 4GB maximum
-- Reserved: 1 CPU core, 2GB RAM
-
-### Security Features
-
-- Non-root user execution
+- Automatic firewall configuration with UFW
+- Secure file permissions
+- Protected environment variables
+- Non-root container execution
 - Limited container capabilities
-- Read-only file system where possible
-- Health checks enabled
-- Automatic container restart
+- Automated security updates
+- SSL/TLS configuration
 
-## Shell Scripts
+### 3. Directory Structure
 
-This repository includes several utility scripts to help manage your Odoo installation:
-
-### Security Scripts
-
-#### `security_audit.sh`
-Performs comprehensive security audit of the system:
-- Gathers system information (OS, CPU, memory, disk usage)
-- Checks installed security packages
-- Audits firewall rules and open ports
-- Scans for rootkits and malware
-- Generates detailed audit report
-
-Usage:
-```bash
-sudo ./security_audit.sh
+```
+/odoo/
+├── addons/             # Custom and community addons
+├── config/             # Odoo configuration
+├── nginx/              # Nginx configuration
+│   ├── conf/          # Server blocks
+│   ├── ssl/           # SSL certificates
+│   └── letsencrypt/   # Let's Encrypt challenges
+├── logs/              # Log files
+└── static/            # Static files
 ```
 
-#### `harden_ubuntu.sh`
-System hardening script for Ubuntu servers:
-- Configures UFW firewall
-- Sets up fail2ban
-- Hardens SSH configuration
-- Updates system packages
-- Configures secure kernel parameters
+### 4. Configuration Files
 
-Usage:
-```bash
-sudo ./harden_ubuntu.sh
-```
-
-### Backup and Maintenance
-
-#### `backup.sh`
-Automated backup script with encryption:
-- Creates encrypted backups of Odoo database
-- Supports GPG encryption for secure storage
-- Implements backup rotation (default: 7 days)
-- Checks available disk space before backup
-- Compresses backup files
-
-Usage:
-```bash
-sudo ./backup.sh
-```
-
-Configuration in script:
-- `BACKUP_DIR`: Backup storage location
-- `BACKUP_RETENTION_DAYS`: Number of days to keep backups
-- `GPG_RECIPIENT`: GPG key for encryption
-
-#### `cleanup.sh`
-System cleanup and maintenance:
-- Removes old Docker containers and images
-- Cleans up temporary files
-- Purges old logs
-- Optimizes disk space
-
-Usage:
-```bash
-sudo ./cleanup.sh
-```
-
-### Deployment Scripts
-
-#### `deploy.sh`
-Manages deployment of Odoo instance:
-- Pulls latest code changes
-- Rebuilds Docker containers
-- Updates Python dependencies
-- Performs database migrations
-- Restarts services
-
-Usage:
-```bash
-./deploy.sh [environment]
-```
-
-#### `post_deploy.sh`
-Post-deployment configuration and checks:
-- Updates Odoo modules
-- Rebuilds assets
-- Verifies system health
-- Sets up cron jobs
-- Configures logging
-
-Usage:
-```bash
-sudo ./post_deploy.sh
-```
-
-#### `init-letsencrypt.sh`
-Sets up SSL certificates using Let's Encrypt:
-- Obtains SSL certificates
-- Configures Nginx for HTTPS
-- Sets up auto-renewal
-- Creates strong DH parameters
-
-Usage:
-```bash
-sudo ./init-letsencrypt.sh
-```
-
-### Monitoring
-
-#### `monitor.sh`
-System monitoring and alerting:
-- Monitors system resources (CPU, memory, disk)
-- Checks container health
-- Monitors Odoo log files
-- Sends alerts for critical issues
-- Generates performance reports
-
-Usage:
-```bash
-./monitor.sh [--alert-email=admin@example.com]
-```
-
-## Environment Variables
-
-The following environment variables can be configured in your `.env` file:
-
-### Database Configuration
+#### Environment Variables (.env)
 ```bash
 POSTGRES_DB=postgres
 POSTGRES_USER=odoo
-POSTGRES_PASSWORD=your_secure_password
+POSTGRES_PASSWORD=<generated>
+ODOO_ADMIN_PASSWD=<generated>
+DOMAIN=your-domain.com
+EMAIL=your-email@domain.com
 ```
 
-### Odoo Configuration
-```bash
-ODOO_DB_HOST=db
-ODOO_DB_USER=odoo
-ODOO_DB_PASSWORD=your_secure_password
-ODOO_ADMIN_PASSWD=admin_secure_password
-```
+#### PostgreSQL Configuration
+- Optimized for production use
+- Automatic backup configuration
+- Connection pooling
+- Performance monitoring
 
-### Backup Configuration
-```bash
-BACKUP_DIR=/var/backups/odoo
-BACKUP_RETENTION_DAYS=7
-GPG_RECIPIENT=your-gpg-key@email.com
-```
+#### Nginx Configuration
+- SSL/TLS configuration
+- HTTP/2 support
+- Reverse proxy settings
+- Load balancing (if multiple workers)
 
 ## Maintenance Commands
 
-### Backup Database
-```bash
-docker exec -t odoo18 odoo-bin -c /etc/odoo/odoo.conf backup --database=[DB_NAME] --master-password=[MASTER_PASSWORD]
-```
+### Database Management
 
-### Update Modules
-```bash
-docker exec -t odoo18 odoo-bin -c /etc/odoo/odoo.conf -d [DB_NAME] -u [MODULE_NAME]
-```
+1. Create Backup:
+   ```bash
+   docker exec -t odoo16-db pg_dump -U odoo postgres > backup.sql
+   ```
 
-### View Logs
-```bash
-docker compose logs -f odoo
-```
+2. Restore Backup:
+   ```bash
+   cat backup.sql | docker exec -i odoo16-db psql -U odoo postgres
+   ```
 
-## Production Deployment
+### Container Management
 
-Additional considerations for production:
-1. Configure SSL/TLS with a reverse proxy (e.g., Nginx)
-2. Set up regular database backups
-3. Monitor container health and resource usage
-4. Configure proper logging rotation
+1. Start Services:
+   ```bash
+   cd /odoo && docker compose up -d
+   ```
+
+2. Stop Services:
+   ```bash
+   docker compose down
+   ```
+
+3. View Logs:
+   ```bash
+   docker compose logs -f
+   ```
+
+4. Update Containers:
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+
+### SSL Certificate Management
+
+1. Initial Certificate:
+   ```bash
+   sudo certbot certonly --webroot -w /odoo/nginx/letsencrypt -d your-domain.com
+   ```
+
+2. Renew Certificate:
+   ```bash
+   sudo certbot renew
+   ```
+
+## Monitoring
+
+### System Monitoring
+- Container health checks
+- Resource usage monitoring
+- Log monitoring
+- Database performance monitoring
+
+### Security Monitoring
+- Failed login attempts
+- System access logs
+- File integrity monitoring
+- Network security monitoring
+
+## Backup Strategy
+
+### Automated Backups
+- Daily database backups
+- Weekly full system backups
+- Secure offsite storage
+- Backup rotation policy
+
+### Backup Verification
+- Automated backup testing
+- Restore verification
+- Data integrity checks
 
 ## Troubleshooting
 
-1. Container won't start:
-   - Check logs: `docker compose logs odoo`
-   - Verify PostgreSQL connection
-   - Ensure correct file permissions
+### Common Issues
 
-2. Performance issues:
-   - Review and adjust resource limits
-   - Monitor system resources
-   - Check Odoo logs for bottlenecks
+1. Port Conflicts:
+   ```bash
+   sudo netstat -tulpn | grep -E ':(80|443|5432|8069|8072)'
+   ```
 
-3. Database connection issues:
-   - Verify environment variables
-   - Check network connectivity
-   - Ensure PostgreSQL container is healthy
+2. Permission Issues:
+   ```bash
+   sudo chown -R root:$USER /odoo
+   sudo chmod -R 750 /odoo
+   ```
 
-## Upgrading
-
-To upgrade to a newer version:
-
-1. Backup your database
-2. Update the Odoo version in Dockerfile
-3. Rebuild containers:
+3. Docker Issues:
    ```bash
    docker compose down
-   docker compose build --no-cache
+   docker system prune
    docker compose up -d
    ```
+
+### Log Locations
+- Odoo Logs: `/odoo/logs/odoo/`
+- Nginx Logs: `/odoo/logs/nginx/`
+- PostgreSQL Logs: `/odoo/logs/postgresql/`
+
+## Security Best Practices
+
+1. Regular Updates:
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   docker compose pull
+   ```
+
+2. Firewall Rules:
+   ```bash
+   sudo ufw status
+   sudo ufw enable
+   ```
+
+3. SSL/TLS Configuration:
+   - Minimum TLS 1.2
+   - Strong cipher suites
+   - HSTS enabled
+   - Regular certificate renewal
+
+## Performance Tuning
+
+### Odoo Configuration
+- Worker configuration
+- Memory management
+- Cache settings
+- Database optimization
+
+### PostgreSQL Tuning
+- Memory allocation
+- Connection pooling
+- Query optimization
+- Vacuum settings
 
 ## Contributing
 
@@ -281,3 +232,7 @@ To upgrade to a newer version:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For issues and feature requests, please create an issue in the repository.
