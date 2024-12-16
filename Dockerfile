@@ -2,7 +2,7 @@ FROM odoo:18
 
 USER root
 
-# Install system dependencies
+# Install system dependencies (without PostgreSQL packages first)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nano \
@@ -16,11 +16,18 @@ RUN apt-get update && \
         python3-certbot-nginx \
         python3-dev \
         build-essential \
-        postgresql-client \
-        libpq-dev \
         libldap2-dev \
         libsasl2-dev \
         libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PostgreSQL client packages
+RUN apt-get update && \
+    apt-get remove -y libpq5 libpq-dev postgresql-client && \
+    apt-get install -y --no-install-recommends \
+        libpq5=16.* \
+        libpq-dev=16.* \
+        postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements files
