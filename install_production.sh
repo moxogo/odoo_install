@@ -503,6 +503,105 @@ EOL
     log "Docker Compose files copied successfully"
 }
 
+# Function to handle .env file
+handle_env_file() {
+    log "Setting up .env file..."
+    local SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    
+    # Check if .env exists in script directory
+    if [ -f "$SCRIPT_DIR/.env" ]; then
+        log "Found existing .env file in script directory"
+        
+        # Create backup of existing .env in /odoo if it exists
+        if [ -f "/odoo/.env" ]; then
+            warn "Existing .env file found in /odoo. Creating backup..."
+            sudo cp "/odoo/.env" "/odoo/.env.backup.$(date +%Y%m%d_%H%M%S)"
+        fi
+        
+        # Copy .env file from script directory
+        if ! sudo cp "$SCRIPT_DIR/.env" "/odoo/.env"; then
+            error "Failed to copy .env file to /odoo"
+            exit 1
+        fi
+        
+        # Set proper permissions
+        if ! sudo chown root:$USER "/odoo/.env"; then
+            error "Failed to set ownership for .env file"
+            exit 1
+        fi
+        if ! sudo chmod 640 "/odoo/.env"; then
+            error "Failed to set permissions for .env file"
+            exit 1
+        fi
+        
+        log ".env file copied successfully"
+    else
+        warn "No .env file found in script directory, will create default"
+        
+        # Generate secure passwords
+        local POSTGRES_PASSWORD=$(openssl rand -hex 32)
+        local ADMIN_PASSWORD=$(openssl rand -hex 32)
+        
+        # Create default .env file
+        if ! cat > "/tmp/odoo.env" << EOL
+# PostgreSQL Configuration
+POSTGRES_DB=postgres
+POSTGRES_USER=odoo
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+PGDATA=/var/lib/postgresql/data/pgdata
+
+# Odoo Configuration
+ODOO_ADMIN_PASSWD=${ADMIN_PASSWORD}
+
+# Domain Configuration
+DOMAIN=your-domain.com
+EMAIL=your-email@domain.com
+
+# Application Paths
+ODOO_EXTRA_ADDONS=/mnt/extra-addons
+ODOO_DATA_DIR=/var/lib/odoo
+
+# Resource Limits
+ODOO_WORKERS=4
+ODOO_MAX_CRON_THREADS=2
+ODOO_LIMIT_MEMORY_HARD=2684354560
+ODOO_LIMIT_MEMORY_SOFT=2147483648
+ODOO_LIMIT_REQUEST=8192
+ODOO_LIMIT_TIME_CPU=600
+ODOO_LIMIT_TIME_REAL=1200
+
+# Logging
+ODOO_LOG_LEVEL=info
+ODOO_LOGFILE=/var/log/odoo/odoo.log
+EOL
+        then
+            error "Failed to create temporary .env file"
+            exit 1
+        fi
+        
+        # Move .env file to final location
+        if ! sudo mv "/tmp/odoo.env" "/odoo/.env"; then
+            error "Failed to move .env file to final location"
+            exit 1
+        fi
+        
+        # Set proper permissions
+        if ! sudo chown root:$USER "/odoo/.env"; then
+            error "Failed to set ownership for .env file"
+            exit 1
+        fi
+        if ! sudo chmod 640 "/odoo/.env"; then
+            error "Failed to set permissions for .env file"
+            exit 1
+        fi
+        
+        log "Default .env file created successfully"
+        log "Please save these credentials:"
+        echo "PostgreSQL Password: $POSTGRES_PASSWORD"
+        echo "Admin Password: $ADMIN_PASSWORD"
+    fi
+}
+
 # Main installation process
 main() {
     log "=== Starting Odoo Production Installation ==="
@@ -584,64 +683,21 @@ main() {
 
     # 7. Copy Docker Compose files
     copy_docker_files
+    
+    # 8. Handle .env file
+    handle_env_file
 
-    # 8. Generate secure passwords
-    log "8. Generating secure passwords..."
-    POSTGRES_PASSWORD=$(openssl rand -hex 32)
-    ADMIN_PASSWORD=$(openssl rand -hex 32)
-
-    # 9. Create .env file with error handling
-    log "9. Creating .env file..."
-    if [ -f "/odoo/.env" ]; then
-        warn "Existing .env file found. Creating backup..."
-        sudo cp /odoo/.env "/odoo/.env.backup.$(date +%Y%m%d_%H%M%S)"
-    fi
-    
-    if ! cat > /tmp/odoo.env << EOL
-POSTGRES_DB=postgres
-POSTGRES_USER=odoo
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-ODOO_ADMIN_PASSWD=${ADMIN_PASSWORD}
-DOMAIN=your-domain.com
-EMAIL=your-email@domain.com
-PGDATA=/var/lib/postgresql/data/pgdata
-EOL
-    then
-        error "Failed to create temporary .env file"
-        exit 1
-    fi
-    
-    if ! sudo mv /tmp/odoo.env /odoo/.env; then
-        error "Failed to move .env file to final location"
-        exit 1
-    fi
-    
-    # Set secure permissions for .env with error handling
-    if ! sudo chown root:$USER /odoo/.env; then
-        error "Failed to set ownership on .env file"
-        exit 1
-    fi
-    
-    if ! sudo chmod 640 /odoo/.env; then
-        error "Failed to set permissions on .env file"
-        exit 1
-    fi
-
-    # 10. Configure firewall
-    log "10. Configuring firewall..."
-    sudo ufw allow 22/tcp
-    sudo ufw allow 80/tcp
-    sudo ufw allow 443/tcp
-    sudo ufw allow 8069/tcp
-    sudo ufw allow 8072/tcp
-    echo "y" | sudo ufw enable
+    # 9. Configure firewall
+    # log "9. Configuring firewall..."
+    # sudo ufw allow 22/tcp
+    # sudo ufw allow 80/tcp
+    # sudo ufw allow 443/tcp
+    # sudo ufw allow 8069/tcp
+    # sudo ufw allow 8072/tcp
+    # echo "y" | sudo ufw enable
 
     # Final setup
     log "=== Installation Complete ==="
-    log "Please save these credentials:"
-    echo "PostgreSQL Password: $POSTGRES_PASSWORD"
-    echo "Admin Password: $ADMIN_PASSWORD"
-    echo ""
     log "Next steps:"
     echo "1. Update the .env file with your domain and email"
     echo "2. Get SSL certificate:"
