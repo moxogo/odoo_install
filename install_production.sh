@@ -276,6 +276,8 @@ copy_docker_files() {
     local REQUIRED_FILES=(
         "docker-compose.yml"
         "Dockerfile"
+        "requirements.txt"
+        "requirements.custom.txt"
     )
     
     local CONFIG_FILES=(
