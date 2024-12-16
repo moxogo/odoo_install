@@ -194,36 +194,38 @@ handle_nginx() {
 }
 
 # Function to handle PostgreSQL
-handle_postgres() {
+check_postgresql() {
     log "Checking for existing PostgreSQL installation..."
-    
-    # Check all potential PostgreSQL processes
-    if pgrep -x "postgres" > /dev/null || systemctl is-active --quiet postgresql; then
-        warn "PostgreSQL is running on the system"
-        warn "This might conflict with Docker PostgreSQL"
-        
+    if systemctl is-active --quiet postgresql || dpkg -l | grep -q postgresql; then
+        log "WARNING: PostgreSQL is running on the system"
+        log "WARNING: This might conflict with Docker PostgreSQL"
         while true; do
-            read -p "Do you want to (S)top, (R)emove, or (K)eep the system PostgreSQL? [S/R/K] " -n 1 -r
-            echo
-            case $REPLY in
+            read -p "Do you want to (S)top, (R)emove, or (K)eep the system PostgreSQL? [S/R/K] " choice
+            case "$choice" in
                 [Ss]* )
                     log "Stopping PostgreSQL..."
-                    sudo systemctl stop postgresql
-                    sudo systemctl disable postgresql
+                    systemctl stop postgresql || true
+                    systemctl disable postgresql || true
                     break;;
                 [Rr]* )
                     log "Removing PostgreSQL..."
-                    sudo systemctl stop postgresql
-                    sudo systemctl disable postgresql
-                    sudo apt-get remove --purge postgresql\* -y
-                    sudo rm -rf /var/lib/postgresql/
+                    systemctl stop postgresql || true
+                    systemctl disable postgresql || true
+                    apt-get remove --purge -y postgresql* || true
+                    apt-get autoremove -y || true
+                    rm -rf /var/lib/postgresql || true
+                    rm -rf /var/log/postgresql || true
+                    rm -rf /etc/postgresql || true
                     break;;
                 [Kk]* )
-                    warn "Keeping system PostgreSQL. Docker PostgreSQL will use alternate port."
+                    log "Keeping PostgreSQL..."
                     break;;
-                * ) echo "Please answer S, R, or K.";;
+                * )
+                    log "Please answer S, R, or K.";;
             esac
         done
+    else
+        log "No existing PostgreSQL installation found."
     fi
 }
 
@@ -614,7 +616,7 @@ main() {
     # Handle existing services first
     log "1. Handling existing services..."
     handle_nginx
-    handle_postgres
+    check_postgresql
     
     # Now check ports after services are handled
     check_network_ports
