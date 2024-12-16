@@ -19,7 +19,7 @@ COPY requirements.txt /tmp/requirements.txt
 COPY requirements.custom.txt /tmp/requirements.custom.txt
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
-    && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt
+RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.txt \
+    && pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.custom.txt
 
 USER odoo
