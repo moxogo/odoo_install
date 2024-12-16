@@ -126,34 +126,71 @@ backup_existing_config() {
 handle_nginx() {
     log "Checking for existing Nginx installation..."
     
-    # Check if port 80 is in use
-    if sudo lsof -i :80 >/dev/null 2>&1; then
-        warn "Port 80 is currently in use"
+    # Check if Nginx is running
+    if pgrep -x "nginx" > /dev/null || systemctl is-active --quiet nginx; then
+        warn "Nginx is currently running"
         
-        # Stop and disable system Nginx
+        # Stop Nginx service
         if systemctl is-active --quiet nginx; then
-            log "Stopping system Nginx..."
-            sudo systemctl stop nginx
-            log "Disabling system Nginx..."
-            sudo systemctl disable nginx
+            log "Stopping Nginx service..."
+            if ! sudo systemctl stop nginx; then
+                error "Failed to stop Nginx service"
+                exit 1
+            fi
+            log "Disabling Nginx service..."
+            if ! sudo systemctl disable nginx; then
+                warn "Failed to disable Nginx service"
+            fi
         fi
 
-        # Remove Nginx packages
-        if dpkg -l | grep -q "^ii.*nginx"; then
-            log "Removing system Nginx packages..."
-            sudo apt-get remove nginx nginx-common -y
-            sudo apt-get autoremove -y
+        # Kill any remaining Nginx processes
+        if pgrep -x "nginx" > /dev/null; then
+            log "Killing remaining Nginx processes..."
+            if ! sudo pkill -f nginx; then
+                error "Failed to kill Nginx processes"
+                exit 1
+            fi
         fi
 
-        # Clean up Nginx directories
-        if [ -d "/etc/nginx" ] || [ -d "/var/log/nginx" ]; then
-            log "Cleaning up Nginx directories..."
-            sudo rm -rf /etc/nginx
-            sudo rm -rf /var/log/nginx
-        fi
+        # Remove Nginx packages if requested
+        while true; do
+            read -p "Do you want to (R)emove Nginx packages or just (K)eep them stopped? [R/K] " -n 1 -r
+            echo
+            case $REPLY in
+                [Rr]* )
+                    log "Removing Nginx packages..."
+                    if ! sudo apt-get remove nginx nginx-common -y; then
+                        warn "Failed to remove Nginx packages"
+                    fi
+                    if ! sudo apt-get autoremove -y; then
+                        warn "Failed to autoremove packages"
+                    fi
+                    # Clean up Nginx directories
+                    if [ -d "/etc/nginx" ] || [ -d "/var/log/nginx" ]; then
+                        log "Cleaning up Nginx directories..."
+                        sudo rm -rf /etc/nginx /var/log/nginx
+                    fi
+                    break;;
+                [Kk]* )
+                    log "Keeping Nginx packages but service is stopped"
+                    break;;
+                * ) echo "Please answer R or K.";;
+            esac
+        done
     fi
 
-    log "Port 80 is now available for use"
+    # Verify port 80 is free
+    for i in {1..5}; do
+        if ! netstat -tuln | grep -q ":80 "; then
+            log "Port 80 is now available"
+            return 0
+        fi
+        log "Waiting for port 80 to be released... (attempt $i/5)"
+        sleep 2
+    done
+
+    error "Port 80 is still in use after stopping Nginx. Please check for other services using this port."
+    exit 1
 }
 
 # Function to handle PostgreSQL
@@ -310,13 +347,15 @@ main() {
 
     # Initial checks
     check_system_requirements
-    check_network_ports
-    backup_existing_config
-
-    # 1. Handle existing services
+    
+    # Handle existing services first
     log "1. Handling existing services..."
     handle_nginx
     handle_postgres
+    
+    # Now check ports after services are handled
+    check_network_ports
+    backup_existing_config
 
     # 2. Update system
     log "2. Updating system..."
