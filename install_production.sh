@@ -94,13 +94,20 @@ check_system_requirements() {
 check_network_ports() {
     log "Checking network ports..."
     local ports=(80 443 5432 8069 8072)
+    local used_ports=()
+    
     for port in "${ports[@]}"; do
-        if netstat -tuln | grep -q ":$port "; then
-            error "Port $port is already in use"
-            echo "Please free up port $port before continuing"
-            exit 1
+        if sudo lsof -i ":$port" &>/dev/null || netstat -tuln | grep -q ":$port "; then
+            used_ports+=("$port")
         fi
     done
+    
+    if [ ${#used_ports[@]} -ne 0 ]; then
+        error "The following ports are in use: ${used_ports[*]}"
+        echo "Please free up these ports before continuing"
+        exit 1
+    fi
+    
     log "All required ports are available"
 }
 
@@ -171,7 +178,7 @@ handle_postgres() {
                     log "Removing PostgreSQL..."
                     sudo systemctl stop postgresql
                     sudo systemctl disable postgresql
-                    sudo apt-get remove --purge postgresql* -y
+                    sudo apt-get remove --purge postgresql\* -y
                     sudo rm -rf /var/lib/postgresql/
                     break;;
                 [Kk]* )
@@ -188,17 +195,39 @@ verify_docker() {
     log "Verifying Docker installation..."
     
     # Test Docker installation
-    if ! docker run hello-world > /dev/null 2>&1; then
+    if ! command -v docker &> /dev/null; then
+        error "Docker is not installed"
+        exit 1
+    fi
+    
+    if ! docker info &> /dev/null; then
+        error "Docker daemon is not running"
+        exit 1
+    fi
+    
+    if ! docker run --rm hello-world &> /dev/null; then
         error "Docker installation verification failed"
         exit 1
     fi
     log "Docker installation verified successfully"
     
     # Test Docker Compose installation
-    if ! docker compose version > /dev/null 2>&1; then
-        error "Docker Compose installation verification failed"
+    if ! command -v docker compose &> /dev/null; then
+        error "Docker Compose is not installed"
         exit 1
-    }
+    fi
+    
+    local compose_version
+    if ! compose_version=$(docker compose version --short 2>/dev/null); then
+        error "Failed to get Docker Compose version"
+        exit 1
+    fi
+    
+    if ! awk -v ver="$compose_version" 'BEGIN{if (ver < 2.0) exit 1; exit 0}'; then
+        error "Docker Compose version must be 2.0 or higher. Found: $compose_version"
+        exit 1
+    fi
+    
     log "Docker Compose installation verified successfully"
 }
 
@@ -258,20 +287,40 @@ main() {
 
     # 6. Create directory structure with secure permissions
     log "6. Creating directory structure..."
-    umask 027
-    sudo mkdir -p /odoo/{config,addons,nginx/{conf,ssl,letsencrypt},logs,moxogo18,static}
-    sudo chown -R root:$USER /odoo
-    sudo chmod -R 750 /odoo
-    sudo chmod 770 /odoo/{logs,nginx/ssl,nginx/letsencrypt}
+    if ! sudo mkdir -p /odoo/{config,addons,nginx/{conf,ssl,letsencrypt},logs,moxogo18,static}; then
+        error "Failed to create directory structure"
+        exit 1
+    fi
+    
+    # Set secure permissions with error handling
+    if ! sudo chown -R root:$USER /odoo; then
+        error "Failed to set ownership on /odoo directory"
+        exit 1
+    fi
+    
+    if ! sudo chmod -R 750 /odoo; then
+        error "Failed to set permissions on /odoo directory"
+        exit 1
+    fi
+    
+    if ! sudo chmod 770 /odoo/{logs,nginx/ssl,nginx/letsencrypt}; then
+        error "Failed to set permissions on sensitive directories"
+        exit 1
+    fi
 
     # 7. Generate secure passwords
     log "7. Generating secure passwords..."
     POSTGRES_PASSWORD=$(openssl rand -hex 32)
     ADMIN_PASSWORD=$(openssl rand -hex 32)
 
-    # 8. Create .env file
+    # 8. Create .env file with error handling
     log "8. Creating .env file..."
-    cat > /odoo/.env << EOL
+    if [ -f "/odoo/.env" ]; then
+        warn "Existing .env file found. Creating backup..."
+        sudo cp /odoo/.env "/odoo/.env.backup.$(date +%Y%m%d_%H%M%S)"
+    fi
+    
+    if ! cat > /tmp/odoo.env << EOL
 POSTGRES_DB=postgres
 POSTGRES_USER=odoo
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -280,10 +329,26 @@ DOMAIN=your-domain.com
 EMAIL=your-email@domain.com
 PGDATA=/var/lib/postgresql/data/pgdata
 EOL
-
-    # Set secure permissions for .env
-    sudo chown root:$USER /odoo/.env
-    sudo chmod 640 /odoo/.env
+    then
+        error "Failed to create temporary .env file"
+        exit 1
+    fi
+    
+    if ! sudo mv /tmp/odoo.env /odoo/.env; then
+        error "Failed to move .env file to final location"
+        exit 1
+    fi
+    
+    # Set secure permissions for .env with error handling
+    if ! sudo chown root:$USER /odoo/.env; then
+        error "Failed to set ownership on .env file"
+        exit 1
+    fi
+    
+    if ! sudo chmod 640 /odoo/.env; then
+        error "Failed to set permissions on .env file"
+        exit 1
+    fi
 
     # 9. Configure firewall
     log "9. Configuring firewall..."
