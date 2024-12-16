@@ -1,0 +1,17 @@
+# Add your custom Python dependencies here
+# pandas==2.0.0
+# numpy==1.24.0
+# requests==2.31.0
+html2text
+pmdarima
+scipy
+numpy
+formio-data
+dropbox
+pysftp
+botocore
+boto3
+paramiko
+pydrive2
+openpyxl
+sortedcontainers
