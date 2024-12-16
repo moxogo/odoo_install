@@ -231,6 +231,79 @@ verify_docker() {
     log "Docker Compose installation verified successfully"
 }
 
+# Function to copy Docker Compose files
+copy_docker_files() {
+    log "Copying Docker Compose files..."
+    
+    local SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    local REQUIRED_FILES=(
+        "docker-compose.yml"
+        "Dockerfile"
+        "postgresql.conf"
+        "odoo.conf"
+        "nginx.conf"
+    )
+    
+    # Check if required files exist in script directory
+    for file in "${REQUIRED_FILES[@]}"; do
+        if [ ! -f "$SCRIPT_DIR/$file" ]; then
+            error "Required file $file not found in script directory"
+            exit 1
+        fi
+    done
+    
+    # Copy files with error handling
+    for file in "${REQUIRED_FILES[@]}"; do
+        if ! sudo cp "$SCRIPT_DIR/$file" "/odoo/$file"; then
+            error "Failed to copy $file to /odoo"
+            exit 1
+        fi
+        # Set proper permissions
+        if ! sudo chown root:$USER "/odoo/$file"; then
+            error "Failed to set ownership for /odoo/$file"
+            exit 1
+        fi
+        if ! sudo chmod 640 "/odoo/$file"; then
+            error "Failed to set permissions for /odoo/$file"
+            exit 1
+        fi
+    done
+    
+    # Create and set permissions for config files
+    if [ -f "$SCRIPT_DIR/odoo.conf" ]; then
+        if ! sudo cp "$SCRIPT_DIR/odoo.conf" "/odoo/config/odoo.conf"; then
+            error "Failed to copy odoo.conf to config directory"
+            exit 1
+        fi
+        if ! sudo chown root:$USER "/odoo/config/odoo.conf"; then
+            error "Failed to set ownership for odoo.conf"
+            exit 1
+        fi
+        if ! sudo chmod 640 "/odoo/config/odoo.conf"; then
+            error "Failed to set permissions for odoo.conf"
+            exit 1
+        fi
+    fi
+    
+    # Copy Nginx configuration
+    if [ -f "$SCRIPT_DIR/nginx.conf" ]; then
+        if ! sudo cp "$SCRIPT_DIR/nginx.conf" "/odoo/nginx/conf/nginx.conf"; then
+            error "Failed to copy nginx.conf"
+            exit 1
+        fi
+        if ! sudo chown root:$USER "/odoo/nginx/conf/nginx.conf"; then
+            error "Failed to set ownership for nginx.conf"
+            exit 1
+        fi
+        if ! sudo chmod 640 "/odoo/nginx/conf/nginx.conf"; then
+            error "Failed to set permissions for nginx.conf"
+            exit 1
+        fi
+    fi
+    
+    log "Docker Compose files copied successfully"
+}
+
 # Main installation process
 main() {
     log "=== Starting Odoo Production Installation ==="
@@ -308,13 +381,16 @@ main() {
         exit 1
     fi
 
-    # 7. Generate secure passwords
-    log "7. Generating secure passwords..."
+    # 7. Copy Docker Compose files
+    copy_docker_files
+
+    # 8. Generate secure passwords
+    log "8. Generating secure passwords..."
     POSTGRES_PASSWORD=$(openssl rand -hex 32)
     ADMIN_PASSWORD=$(openssl rand -hex 32)
 
-    # 8. Create .env file with error handling
-    log "8. Creating .env file..."
+    # 9. Create .env file with error handling
+    log "9. Creating .env file..."
     if [ -f "/odoo/.env" ]; then
         warn "Existing .env file found. Creating backup..."
         sudo cp /odoo/.env "/odoo/.env.backup.$(date +%Y%m%d_%H%M%S)"
@@ -350,8 +426,8 @@ EOL
         exit 1
     fi
 
-    # 9. Configure firewall
-    log "9. Configuring firewall..."
+    # 10. Configure firewall
+    log "10. Configuring firewall..."
     sudo ufw allow 22/tcp
     sudo ufw allow 80/tcp
     sudo ufw allow 443/tcp
