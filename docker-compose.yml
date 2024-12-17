@@ -12,10 +12,10 @@ services:
       - redis
     env_file: .env
     environment:
-      - ODOO_DB_HOST=${POSTGRES_HOST}
+      - ODOO_DB_HOST=db
       - ODOO_DB_PORT=5432
-      - ODOO_DB_USER=${POSTGRES_USER}
-      - ODOO_DB_PASSWORD=${POSTGRES_PASSWORD}
+      - ODOO_DB_USER=odoo
+      - ODOO_DB_PASSWORD=odoo
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - ODOO_PROXY_MODE=${ODOO_PROXY_MODE}
@@ -76,11 +76,10 @@ services:
     image: ${POSTGRES_IMAGE}
     container_name: odoo18_db
     user: postgres
-    env_file: .env
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
       - PGDATA=/var/lib/postgresql/data/pgdata
       - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
     volumes:
@@ -131,9 +130,9 @@ services:
       - odoo-db-backup:/backups
     environment:
       - POSTGRES_HOST=db
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
       - SCHEDULE=${BACKUP_SCHEDULE:-@daily}
       - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS:-7}
       - BACKUP_KEEP_WEEKS=${BACKUP_KEEP_WEEKS:-4}
