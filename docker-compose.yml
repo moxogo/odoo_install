@@ -17,7 +17,7 @@ services:
       - USER=${POSTGRES_USER}
       - PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=redis
-      - REDIS_PASSWORD=odoo
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PROMETHEUS_MULTIPROC_DIR=/tmp
     volumes:
       - odoo-web-data:/var/lib/odoo
