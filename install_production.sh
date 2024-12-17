@@ -523,11 +523,13 @@ handle_passwords() {
         # Generate new passwords
         POSTGRES_PASSWORD=$(openssl rand -base64 32)
         ODOO_ADMIN_PASSWORD=$(openssl rand -base64 32)
+        REDIS_PASSWORD=$(openssl rand -base64 32)
         
         # Store passwords in file
         {
             echo "POSTGRES_PASSWORD='$POSTGRES_PASSWORD'"
             echo "ODOO_ADMIN_PASSWORD='$ODOO_ADMIN_PASSWORD'"
+            echo "REDIS_PASSWORD='$REDIS_PASSWORD'"
         } > "$password_file"
         
         # Secure the password file
@@ -552,6 +554,7 @@ create_env_file() {
     # Create new .env file
     cat > "$env_file" <<EOF
 # PostgreSQL Configuration
+POSTGRES_IMAGE=postgres:16
 POSTGRES_DB=postgres
 POSTGRES_USER=odoo
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -568,21 +571,26 @@ ODOO_PROXY_MODE=True
 
 # Container Configuration
 ODOO_IMAGE=odoo:18
-POSTGRES_IMAGE=postgres:16
 NGINX_IMAGE=nginx:alpine
 CERTBOT_IMAGE=certbot/certbot
 
-# Ports
+# Ports (used only in development)
 ODOO_PORT=8069
 ODOO_LONGPOLLING_PORT=8072
 POSTGRES_PORT_FORWARD=5432
 
 # Volumes
-ODOO_ADDONS_PATH=/mnt/extra-addons
+ODOO_ADDONS_PATH=/mnt/extra-addons,/mnt/extra-addons/moxogo18
 ODOO_DATA_DIR=/var/lib/odoo
 POSTGRES_DATA_DIR=/var/lib/postgresql/data
 
-# Resource Limits
+# Nginx & SSL Configuration
+NGINX_PORT=80
+NGINX_SSL_PORT=443
+DOMAIN_NAME=\${NGINX_DOMAIN:-localhost}
+CERTBOT_EMAIL=\${CERTBOT_EMAIL:-admin@localhost}
+
+# Resource Limits (adjust based on your server capacity)
 ODOO_CPU_LIMIT=2
 ODOO_MEMORY_LIMIT=4G
 POSTGRES_CPU_LIMIT=2
@@ -590,9 +598,16 @@ POSTGRES_MEMORY_LIMIT=2G
 NGINX_CPU_LIMIT=1
 NGINX_MEMORY_LIMIT=1G
 
-# Nginx & SSL Configuration
-NGINX_DOMAIN=\${NGINX_DOMAIN:-localhost}
-CERTBOT_EMAIL=\${CERTBOT_EMAIL:-admin@localhost}
+# Backup Configuration
+BACKUP_SCHEDULE=@daily
+BACKUP_RETENTION=7
+BACKUP_DIR=/backup
+
+# Redis Configuration
+REDIS_IMAGE=redis:7.0
+REDIS_HOST=redis
+REDIS_PASSWORD=$REDIS_PASSWORD
+REDIS_PORT=6379
 EOF
 
     # Secure the .env file
