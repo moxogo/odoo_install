@@ -2,8 +2,8 @@ FROM odoo:18
 
 USER root
 
-# Create odoo user and group
-RUN useradd -m -d /opt/odoo -U -r -s /bin/bash odoo
+# Create odoo user and group first
+RUN groupadd -r odoo && useradd -r -g odoo -d /odoo -s /sbin/nologin odoo
 
 # Install system dependencies (without PostgreSQL packages first)
 RUN apt-get update && \
@@ -42,7 +42,9 @@ RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed psyco
     pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.custom.txt
 
-# Set proper permissions
-RUN chown -R odoo:odoo /opt/odoo
+# Create necessary directories and set permissions
+RUN mkdir -p /odoo /var/lib/odoo /var/log/odoo && \
+    chown -R odoo:odoo /odoo /var/lib/odoo /var/log/odoo /tmp/requirements.txt /tmp/requirements.custom.txt
 
+# Switch to odoo user
 USER odoo
