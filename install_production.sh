@@ -507,103 +507,94 @@ EOL
     log "Docker Compose files copied successfully"
 }
 
-# Function to handle .env file
-handle_env_file() {
-    log "Setting up .env file..."
-    local SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Function to generate or retrieve stored passwords
+handle_passwords() {
+    local password_file="$INSTALL_DIR/.passwords"
     
-    # Check if .env exists in script directory
-    if [ -f "$SCRIPT_DIR/.env" ]; then
-        log "Found existing .env file in script directory"
-        
-        # Create backup of existing .env in /odoo if it exists
-        if [ -f "/odoo/.env" ]; then
-            warn "Existing .env file found in /odoo. Creating backup..."
-            sudo cp "/odoo/.env" "/odoo/.env.backup.$(date +%Y%m%d_%H%M%S)"
-        fi
-        
-        # Copy .env file from script directory
-        if ! sudo cp "$SCRIPT_DIR/.env" "/odoo/.env"; then
-            error "Failed to copy .env file to /odoo"
-            exit 1
-        fi
-        
-        # Set proper permissions
-        if ! sudo chown root:$USER "/odoo/.env"; then
-            error "Failed to set ownership for .env file"
-            exit 1
-        fi
-        if ! sudo chmod 640 "/odoo/.env"; then
-            error "Failed to set permissions for .env file"
-            exit 1
-        fi
-        
-        log ".env file copied successfully"
+    # If password file exists, load the passwords
+    if [ -f "$password_file" ]; then
+        log "Loading existing passwords..."
+        source "$password_file"
     else
-        warn "No .env file found in script directory, will create default"
+        log "Generating new passwords..."
+        # Generate new passwords
+        POSTGRES_PASSWORD=$(openssl rand -base64 32)
+        ODOO_ADMIN_PASSWORD=$(openssl rand -base64 32)
         
-        # Generate secure passwords
-        local POSTGRES_PASSWORD=$(openssl rand -hex 32)
-        local ADMIN_PASSWORD=$(openssl rand -hex 32)
+        # Store passwords in file
+        {
+            echo "POSTGRES_PASSWORD='$POSTGRES_PASSWORD'"
+            echo "ODOO_ADMIN_PASSWORD='$ODOO_ADMIN_PASSWORD'"
+        } > "$password_file"
         
-        # Create default .env file
-        if ! cat > "/tmp/odoo.env" << EOL
+        # Secure the password file
+        chmod 600 "$password_file"
+    fi
+}
+
+# Function to create or update .env file
+create_env_file() {
+    local env_file="$INSTALL_DIR/.env"
+    local backup_suffix=$(date +%Y%m%d_%H%M%S)
+    
+    # Load or generate passwords
+    handle_passwords
+    
+    # Backup existing .env if it exists
+    if [ -f "$env_file" ]; then
+        cp "$env_file" "${env_file}.backup.${backup_suffix}"
+        log "Backed up existing .env file to ${env_file}.backup.${backup_suffix}"
+    fi
+    
+    # Create new .env file
+    cat > "$env_file" <<EOF
 # PostgreSQL Configuration
 POSTGRES_DB=postgres
 POSTGRES_USER=odoo
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-PGDATA=/var/lib/postgresql/data/pgdata
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
 
 # Odoo Configuration
-ODOO_ADMIN_PASSWD=${ADMIN_PASSWORD}
+ODOO_ADMIN_PASSWD=$ODOO_ADMIN_PASSWORD
+ODOO_DB_HOST=db
+ODOO_DB_PORT=5432
+ODOO_DB_USER=odoo
+ODOO_DB_PASSWORD=$POSTGRES_PASSWORD
+ODOO_PROXY_MODE=True
 
-# Domain Configuration
-DOMAIN=your-domain.com
-EMAIL=your-email@domain.com
+# Container Configuration
+ODOO_IMAGE=odoo:18
+POSTGRES_IMAGE=postgres:16
+NGINX_IMAGE=nginx:alpine
+CERTBOT_IMAGE=certbot/certbot
 
-# Application Paths
-ODOO_EXTRA_ADDONS=/mnt/extra-addons
+# Ports
+ODOO_PORT=8069
+ODOO_LONGPOLLING_PORT=8072
+POSTGRES_PORT_FORWARD=5432
+
+# Volumes
+ODOO_ADDONS_PATH=/mnt/extra-addons
 ODOO_DATA_DIR=/var/lib/odoo
+POSTGRES_DATA_DIR=/var/lib/postgresql/data
 
 # Resource Limits
-ODOO_WORKERS=4
-ODOO_MAX_CRON_THREADS=2
-ODOO_LIMIT_MEMORY_HARD=2684354560
-ODOO_LIMIT_MEMORY_SOFT=2147483648
-ODOO_LIMIT_REQUEST=8192
-ODOO_LIMIT_TIME_CPU=600
-ODOO_LIMIT_TIME_REAL=1200
+ODOO_CPU_LIMIT=2
+ODOO_MEMORY_LIMIT=4G
+POSTGRES_CPU_LIMIT=2
+POSTGRES_MEMORY_LIMIT=2G
+NGINX_CPU_LIMIT=1
+NGINX_MEMORY_LIMIT=1G
+EOF
 
-# Logging
-ODOO_LOG_LEVEL=info
-ODOO_LOGFILE=/var/log/odoo/odoo.log
-EOL
-        then
-            error "Failed to create temporary .env file"
-            exit 1
-        fi
-        
-        # Move .env file to final location
-        if ! sudo mv "/tmp/odoo.env" "/odoo/.env"; then
-            error "Failed to move .env file to final location"
-            exit 1
-        fi
-        
-        # Set proper permissions
-        if ! sudo chown root:$USER "/odoo/.env"; then
-            error "Failed to set ownership for .env file"
-            exit 1
-        fi
-        if ! sudo chmod 640 "/odoo/.env"; then
-            error "Failed to set permissions for .env file"
-            exit 1
-        fi
-        
-        log "Default .env file created successfully"
-        log "Please save these credentials:"
-        echo "PostgreSQL Password: $POSTGRES_PASSWORD"
-        echo "Admin Password: $ADMIN_PASSWORD"
-    fi
+    # Secure the .env file
+    chmod 640 "$env_file"
+    log "Created new .env file with secure permissions"
+    
+    # Display important information
+    log "Important: Your passwords are stored in $INSTALL_DIR/.passwords"
+    log "Make sure to keep this file secure and backed up"
 }
 
 # Main installation process
@@ -689,7 +680,7 @@ main() {
     copy_docker_files
     
     # 8. Handle .env file
-    handle_env_file
+    create_env_file
 
     # 9. Configure firewall
     # log "9. Configuring firewall..."
