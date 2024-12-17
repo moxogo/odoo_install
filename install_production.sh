@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Set installation directory
+INSTALL_DIR="/odoo"
+
 # Strict error handling
 set -euo pipefail
 IFS=$'\n\t'
