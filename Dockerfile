@@ -2,6 +2,9 @@ FROM odoo:18
 
 USER root
 
+# Create odoo user and group
+RUN useradd -m -d /opt/odoo -U -r -s /bin/bash odoo
+
 # Install system dependencies (without PostgreSQL packages first)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -38,5 +41,8 @@ COPY requirements.custom.txt /tmp/requirements.custom.txt
 RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed psycopg2-binary && \
     pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
     pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.custom.txt
+
+# Set proper permissions
+RUN chown -R odoo:odoo /opt/odoo
 
 USER odoo
