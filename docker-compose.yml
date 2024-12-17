@@ -70,7 +70,9 @@ services:
         tag: "{{.Name}}"
 
   db:
-    image: ${POSTGRES_IMAGE}
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
     container_name: odoo18_db
     user: postgres
     env_file: .env
@@ -83,12 +85,9 @@ services:
       - type: volume
         source: odoo-db-data
         target: /var/lib/postgresql/data
-      - type: bind
-        source: ./postgresql.conf
-        target: /etc/postgresql/postgresql.conf
-        read_only: false
     command: >
       bash -c "
+        cp /tmp/postgresql.conf /etc/postgresql/postgresql.conf &&
         chmod 600 /etc/postgresql/postgresql.conf &&
         chown postgres:postgres /etc/postgresql/postgresql.conf &&
         postgres -c 'config_file=/etc/postgresql/postgresql.conf'
