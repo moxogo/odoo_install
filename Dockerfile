@@ -2,8 +2,12 @@ FROM odoo:18
 
 USER root
 
-# Create odoo user and group first
-RUN groupadd -r odoo && useradd -r -g odoo -d /odoo -s /sbin/nologin odoo
+# Create or update odoo user
+RUN if getent group odoo > /dev/null; then \
+        usermod -d /odoo -m odoo || true; \
+    else \
+        groupadd -r odoo && useradd -r -g odoo -d /odoo -s /sbin/nologin odoo; \
+    fi
 
 # Install system dependencies (without PostgreSQL packages first)
 RUN apt-get update && \
