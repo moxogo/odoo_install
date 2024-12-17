@@ -81,7 +81,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - odoo-db-data:/var/lib/postgresql/data/pgdata
+      - odoo-db-data:/var/lib/postgresql/data
       - type: bind
         source: ./postgresql.conf
         target: /etc/postgresql/postgresql.conf
@@ -112,19 +112,18 @@ services:
       - no-new-privileges:true
     tmpfs:
       - /tmp
-      - /run
+      - /var/run/postgresql
     ulimits:
       nproc: 65535
       nofile:
         soft: 20000
         hard: 40000
-    cap_drop:
-      - ALL
     cap_add:
       - CHOWN
       - SETGID
       - SETUID
       - DAC_OVERRIDE
+      - FOWNER
     logging:
       driver: "json-file"
       options:
