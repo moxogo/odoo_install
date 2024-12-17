@@ -30,6 +30,11 @@ RUN set -ex; \
         python3-certbot-nginx \
         python3-wheel \
         python3-setuptools \
+        python3-cryptography \
+        python3-openssl \
+        python3-psycopg2 \
+        python3-cffi \
+        python3-usb \
     && rm -rf /var/lib/apt/lists/*; \
     # Install PostgreSQL client packages
     apt-get update && \
@@ -53,13 +58,10 @@ RUN set -ex; \
 # Copy and set permissions for requirements files
 COPY --chown=odoo:odoo requirements.txt requirements.custom.txt /tmp/
 
-# Install Python dependencies as root (to avoid permission issues)
+# Install remaining Python dependencies as root (to avoid permission issues)
 RUN set -ex; \
-    pip3 install --no-cache-dir --break-system-packages psycopg2-binary; \
-    pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt; \
-    pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt; \
-    # Verify installations
-    python3 -c "import psycopg2" && \
+    pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.txt; \
+    pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.custom.txt; \
     # Clean up
     rm -rf /root/.cache /tmp/pip* /tmp/*.txt
 
