@@ -369,14 +369,6 @@ copy_docker_files() {
     # Make entrypoint.sh executable
     sudo chmod +x "/odoo/config/entrypoint.sh"
     
-    # Create SSL directory for nginx
-    sudo mkdir -p "/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
-    sudo chmod -R 750 "/odoo/nginx/ssl"
-    
-    # Create letsencrypt directory
-    sudo mkdir -p "/odoo/nginx/letsencrypt"
-    sudo chmod 755 "/odoo/nginx/letsencrypt"
-    
     log "Docker Compose files copied successfully"
 }
 
@@ -597,11 +589,25 @@ main() {
     
     # 8. Handle .env file
     create_env_file
-
-    # 9. Verify container configurations
+    
+    # 9. Create SSL directories with domain from .env
+    if [ -f "/odoo/.env" ]; then
+        source "/odoo/.env"
+        if [ -n "${NGINX_DOMAIN}" ]; then
+            log "Creating SSL directories for domain: ${NGINX_DOMAIN}"
+            sudo mkdir -p "/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
+            sudo chmod -R 750 "/odoo/nginx/ssl"
+            sudo mkdir -p "/odoo/nginx/letsencrypt"
+            sudo chmod 755 "/odoo/nginx/letsencrypt"
+        else
+            warn "NGINX_DOMAIN not set in .env file"
+        fi
+    fi
+    
+    # 10. Verify container configurations
     verify_container_configs
     
-    # 10. Verify SSL certificates
+    # 11. Verify SSL certificates
     verify_ssl_certificates
 
     # 11. Configure firewall
