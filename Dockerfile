@@ -28,6 +28,8 @@ RUN set -ex; \
         libssl-dev \
         certbot \
         python3-certbot-nginx \
+        python3-wheel \
+        python3-setuptools \
     && rm -rf /var/lib/apt/lists/*; \
     # Install PostgreSQL client packages
     apt-get update && \
@@ -37,10 +39,6 @@ RUN set -ex; \
         libpq-dev=16.* \
         postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
-
-# Setup Python environment
-RUN set -ex; \
-    python3 -m pip install --upgrade pip setuptools wheel
 
 # Create or update odoo user with proper permissions
 RUN set -ex; \
