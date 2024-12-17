@@ -13,7 +13,7 @@ services:
     env_file: .env
     environment:
       - ODOO_DB_HOST=${POSTGRES_HOST}
-      - ODOO_DB_PORT=${POSTGRES_PORT}
+      - ODOO_DB_PORT=5432
       - ODOO_DB_USER=${POSTGRES_USER}
       - ODOO_DB_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_HOST=${REDIS_HOST}
@@ -86,9 +86,9 @@ services:
     volumes:
       - odoo-db-data:/var/lib/postgresql/data
     expose:
-      - "${POSTGRES_PORT}"
+      - "5432"
     ports:
-      - "${POSTGRES_PORT_FORWARD}:5432"
+      - "5432:5432"
     networks:
       odoo_network:
         aliases:
