@@ -1,6 +1,13 @@
 #!/bin/bash
 
-# Set installation directory
+# User configurable variables
+NGINX_DOMAIN=${NGINX_DOMAIN:-"localhost"}
+CERTBOT_EMAIL=${CERTBOT_EMAIL:-"admin@localhost"}
+ODOO_PORT=${ODOO_PORT:-8069}
+ODOO_LONGPOLLING_PORT=${ODOO_LONGPOLLING_PORT:-8072}
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+
+# Installation directory
 INSTALL_DIR="/odoo"
 
 # Strict error handling
@@ -444,12 +451,12 @@ POSTGRES_DB=postgres
 POSTGRES_USER=odoo
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 POSTGRES_HOST=db
-POSTGRES_PORT=5432
+POSTGRES_PORT=$POSTGRES_PORT
 
 # Odoo Configuration
 ODOO_ADMIN_PASSWD=$ODOO_ADMIN_PASSWORD
 ODOO_DB_HOST=db
-ODOO_DB_PORT=5432
+ODOO_DB_PORT=$POSTGRES_PORT
 ODOO_DB_USER=odoo
 ODOO_DB_PASSWORD=$POSTGRES_PASSWORD
 ODOO_PROXY_MODE=True
@@ -460,9 +467,9 @@ NGINX_IMAGE=nginx:alpine
 CERTBOT_IMAGE=certbot/certbot
 
 # Ports (used only in development)
-ODOO_PORT=8069
-ODOO_LONGPOLLING_PORT=8072
-POSTGRES_PORT_FORWARD=5432
+ODOO_PORT=$ODOO_PORT
+ODOO_LONGPOLLING_PORT=$ODOO_LONGPOLLING_PORT
+POSTGRES_PORT_FORWARD=$POSTGRES_PORT
 
 # Volumes
 ODOO_ADDONS_PATH=/mnt/extra-addons,/mnt/extra-addons/moxogo18
@@ -472,21 +479,8 @@ POSTGRES_DATA_DIR=/var/lib/postgresql/data
 # Nginx & SSL Configuration
 NGINX_PORT=80
 NGINX_SSL_PORT=443
-DOMAIN_NAME=\${NGINX_DOMAIN:-localhost}
-CERTBOT_EMAIL=\${CERTBOT_EMAIL:-admin@localhost}
-
-# Resource Limits (adjust based on your server capacity)
-ODOO_CPU_LIMIT=2
-ODOO_MEMORY_LIMIT=4G
-POSTGRES_CPU_LIMIT=2
-POSTGRES_MEMORY_LIMIT=2G
-NGINX_CPU_LIMIT=1
-NGINX_MEMORY_LIMIT=1G
-
-# Backup Configuration
-BACKUP_SCHEDULE=@daily
-BACKUP_RETENTION=7
-BACKUP_DIR=/backup
+NGINX_DOMAIN=$NGINX_DOMAIN
+CERTBOT_EMAIL=$CERTBOT_EMAIL
 
 # Redis Configuration
 REDIS_IMAGE=redis:7.0
@@ -507,6 +501,16 @@ EOF
 # Main installation process
 main() {
     log "=== Starting Odoo Production Installation ==="
+
+    # Show configuration
+    log "Installation Configuration:"
+    log "  Domain: $NGINX_DOMAIN"
+    log "  Email: $CERTBOT_EMAIL"
+    log "  Odoo Port: $ODOO_PORT"
+    log "  Longpolling Port: $ODOO_LONGPOLLING_PORT"
+    log "  PostgreSQL Port: $POSTGRES_PORT"
+    echo ""
+    read -p "Press Enter to continue with these settings, or Ctrl+C to abort..."
 
     # Initial checks
     check_system_requirements
@@ -590,19 +594,12 @@ main() {
     # 8. Handle .env file
     create_env_file
     
-    # 9. Create SSL directories with domain from .env
-    if [ -f "/odoo/.env" ]; then
-        source "/odoo/.env"
-        if [ -n "${NGINX_DOMAIN}" ]; then
-            log "Creating SSL directories for domain: ${NGINX_DOMAIN}"
-            sudo mkdir -p "/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
-            sudo chmod -R 750 "/odoo/nginx/ssl"
-            sudo mkdir -p "/odoo/nginx/letsencrypt"
-            sudo chmod 755 "/odoo/nginx/letsencrypt"
-        else
-            warn "NGINX_DOMAIN not set in .env file"
-        fi
-    fi
+    # 9. Create SSL directories
+    log "Creating SSL directories for domain: ${NGINX_DOMAIN}"
+    sudo mkdir -p "/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
+    sudo chmod -R 750 "/odoo/nginx/ssl"
+    sudo mkdir -p "/odoo/nginx/letsencrypt"
+    sudo chmod 755 "/odoo/nginx/letsencrypt"
     
     # 10. Verify container configurations
     verify_container_configs

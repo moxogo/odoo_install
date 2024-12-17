@@ -33,6 +33,15 @@ RUN apt-get update \
         postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements files
+COPY requirements.txt /tmp/requirements.txt
+COPY requirements.custom.txt /tmp/requirements.custom.txt
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
+    && pip3 install --no-cache-dir -r /tmp/requirements.custom.txt \
+    && rm -f /tmp/requirements.txt /tmp/requirements.custom.txt
+
 WORKDIR /var/lib/odoo
 
 # Copy and set entrypoint script
