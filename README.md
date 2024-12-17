@@ -4,14 +4,35 @@ This repository contains a production-ready Odoo 18 setup using Docker with enha
 
 ## System Requirements
 
-- Ubuntu 20.04 LTS or later
-- Minimum 2 CPU cores
-- Minimum 4GB RAM (8GB recommended)
-- Minimum 20GB free disk space
 - Docker Engine 20.10.x or later
 - Docker Compose V2
+- Minimum 20GB free disk space
+
+Core services (Odoo, PostgreSQL, Nginx, Redis) are handled by Docker containers.
 
 ## Features
+
+### Container-Based Architecture
+- Isolated services in containers
+- Automatic dependency management
+- Consistent environment across deployments
+- Easy scaling and updates
+
+### Security Features
+- Container isolation
+- UFW firewall configuration
+- SSL/TLS with Certbot integration
+- Protected environment variables
+- Non-root container execution
+- Limited container capabilities
+- Read-only root filesystem
+- Network isolation
+
+### Host System Tools
+- Certbot for SSL certificate management
+- UFW for firewall management
+- Network monitoring tools
+- System maintenance utilities
 
 ### Performance Optimizations
 - Redis session store for improved performance
@@ -20,18 +41,7 @@ This repository contains a production-ready Odoo 18 setup using Docker with enha
 - Memory management and limits
 - Connection pooling
 
-### Security Features
-- Automatic firewall configuration with UFW
-- Secure file permissions
-- Protected environment variables
-- Non-root container execution
-- Limited container capabilities
-- Read-only root filesystem
-- Seccomp profiles
-- Network isolation
-
 ### Monitoring & Maintenance
-- Prometheus metrics integration
 - Container health checks
 - Resource usage monitoring
 - Automated database backups
@@ -116,41 +126,60 @@ max_connections = 100
 
 ## Installation Process
 
-The installation script performs the following checks and configurations:
+The installation script performs the following:
 
 ### Pre-installation Checks
 1. System Requirements
-   - CPU cores and RAM verification
    - Disk space validation
-   - Operating system compatibility
+   - Docker installation verification
+   - Docker Compose version check
 
-2. Package Version Verification
-   - Python 3.8.0 or higher
-   - OpenSSL 1.1.1 or higher
-   - Nginx 1.18.0 or higher
+2. System Security
+   - UFW firewall configuration
+   - SSL certificate setup with Certbot
+   - Secure file permissions
 
 3. Service Conflict Resolution
-   - Handles existing Nginx installations
-   - Manages PostgreSQL conflicts
+   - Handles existing service conflicts
    - Verifies port availability
+   - Manages existing data backup
 
-### Security Configuration
-1. SSL Certificate Management
-   - Validates SSL certificate paths
-   - Automated certificate verification
-   - Certbot integration for Let's Encrypt
+### Required Packages
+```bash
+# Core utilities
+apt-transport-https
+ca-certificates
+curl
+software-properties-common
+git
 
-2. File Permissions
-   - Secure configuration files (640)
-   - Protected password storage (600)
-   - Controlled log access (750)
+# SSL and security
+certbot
+python3-certbot-nginx
+openssl
+ufw
 
-3. Container Security
-   - Restart policy verification
-   - Mount point validation
-   - Network isolation checks
+# Development tools
+nano
+python3-pip
+net-tools
+```
 
-### Production Readiness
+### Firewall Configuration
+```bash
+# Default SSH access
+ufw allow 22/tcp
+
+# Web traffic
+ufw allow 80/tcp   # HTTP
+ufw allow 443/tcp  # HTTPS
+
+# Odoo ports
+ufw allow 8069/tcp # Web interface
+ufw allow 8072/tcp # Live chat/Longpolling
+```
+
+### Container Setup
 1. Directory Structure
    ```
    /odoo/
@@ -168,10 +197,10 @@ The installation script performs the following checks and configurations:
    └── backup/
    ```
 
-2. Environment Variables
-   - Secure password generation
-   - Redis session management
-   - Service configurations
+2. Security Configuration
+   - Secure file permissions
+   - Protected password storage
+   - SSL certificate management
 
 3. Container Health Checks
    - Service availability monitoring

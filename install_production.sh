@@ -52,38 +52,6 @@ trap 'handle_error ${LINENO} $?' ERR
 check_system_requirements() {
     log "Checking system requirements..."
     
-    # Check OS
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        if [[ "$ID" != "ubuntu" ]]; then
-            error "This script requires Ubuntu. Current OS: $ID"
-            exit 1
-        fi
-        if [[ "${VERSION_ID}" < "20.04" ]]; then
-            error "This script requires Ubuntu 20.04 or later. Current version: $VERSION_ID"
-            exit 1
-        fi
-    else
-        error "Cannot determine OS version"
-        exit 1
-    fi
-
-    # Check CPU cores
-    CPU_CORES=$(nproc)
-    if [ "$CPU_CORES" -lt 2 ]; then
-        error "Minimum 2 CPU cores required, found: $CPU_CORES"
-        exit 1
-    fi
-    log "CPU cores check passed: $CPU_CORES cores available"
-    
-    # Check RAM
-    TOTAL_RAM=$(free -g | awk '/^Mem:/{print $2}')
-    if [ "$TOTAL_RAM" -lt 4 ]; then
-        error "Minimum 4GB RAM required, found: ${TOTAL_RAM}GB"
-        exit 1
-    fi
-    log "RAM check passed: ${TOTAL_RAM}GB available"
-    
     # Check disk space
     FREE_SPACE=$(df -BG / | awk 'NR==2 {print $4}' | sed 's/G//')
     if [ "$FREE_SPACE" -lt 20 ]; then
@@ -93,36 +61,81 @@ check_system_requirements() {
     log "Disk space check passed: ${FREE_SPACE}GB available"
 }
 
-# Function to check network ports
-check_network_ports() {
-    log "Checking network ports..."
-    local ports=(80 443 5432 8069 8072)
-    local used_ports=()
+# Function to verify Docker installation
+verify_docker() {
+    log "Verifying Docker installation..."
     
-    for port in "${ports[@]}"; do
-        if sudo lsof -i ":$port" &>/dev/null || netstat -tuln | grep -q ":$port "; then
-            used_ports+=("$port")
-        fi
-    done
-    
-    if [ ${#used_ports[@]} -ne 0 ]; then
-        error "The following ports are in use: ${used_ports[*]}"
-        echo "Please free up these ports before continuing"
+    # Test Docker installation
+    if ! command -v docker &> /dev/null; then
+        error "Docker is not installed"
         exit 1
     fi
     
-    log "All required ports are available"
+    if ! docker info &> /dev/null; then
+        error "Docker daemon is not running"
+        exit 1
+    fi
+    
+    # Test Docker Compose installation
+    if ! command -v docker compose &> /dev/null; then
+        error "Docker Compose is not installed"
+        exit 1
+    fi
+    
+    local compose_version
+    if ! compose_version=$(docker compose version --short 2>/dev/null); then
+        error "Failed to get Docker Compose version"
+        exit 1
+    fi
+    
+    if ! awk -v ver="$compose_version" 'BEGIN{if (ver < 2.0) exit 1; exit 0}'; then
+        error "Docker Compose version must be 2.0 or higher. Found: $compose_version"
+        exit 1
+    fi
+    
+    log "Docker installation verified successfully"
 }
 
-# Function to backup existing configuration
-backup_existing_config() {
-    if [ -d "/odoo" ]; then
-        local BACKUP_DIR="/odoo_backup_$(date +%Y%m%d_%H%M%S)"
-        warn "Existing /odoo directory found"
-        log "Backing up existing /odoo directory to $BACKUP_DIR"
-        sudo cp -r /odoo "$BACKUP_DIR"
-        log "Backup completed"
+# Function to verify SSL certificates
+verify_ssl_certificates() {
+    log "Verifying SSL certificate paths..."
+    local ssl_dir="/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
+    
+    if [ ! -f "${ssl_dir}/fullchain.pem" ] || [ ! -f "${ssl_dir}/privkey.pem" ]; then
+        warn "SSL certificates not found at ${ssl_dir}"
+        warn "You will need to obtain SSL certificates using certbot"
+        warn "Run: certbot certonly --webroot -w /odoo/nginx/letsencrypt -d ${NGINX_DOMAIN}"
+    else
+        log "SSL certificates found"
     fi
+}
+
+# Function to verify container configurations
+verify_container_configs() {
+    log "Verifying container configurations..."
+    
+    # Check restart policies
+    if ! grep -q "restart: unless-stopped" docker-compose.yml; then
+        error "Container restart policy not properly configured"
+        exit 1
+    fi
+    
+    # Validate mount points
+    local required_mounts=(
+        "/odoo/config"
+        "/odoo/addons"
+        "/odoo/logs"
+        "/odoo/data"
+        "/odoo/nginx/conf"
+        "/odoo/nginx/ssl"
+    )
+    
+    for mount in "${required_mounts[@]}"; do
+        if [ ! -d "$mount" ]; then
+            error "Required mount point $mount does not exist"
+            exit 1
+        fi
+    done
 }
 
 # Function to handle Nginx
@@ -196,6 +209,38 @@ handle_nginx() {
     exit 1
 }
 
+# Function to check network ports
+check_network_ports() {
+    log "Checking network ports..."
+    local ports=(80 443 5432 8069 8072)
+    local used_ports=()
+    
+    for port in "${ports[@]}"; do
+        if sudo lsof -i ":$port" &>/dev/null || netstat -tuln | grep -q ":$port "; then
+            used_ports+=("$port")
+        fi
+    done
+    
+    if [ ${#used_ports[@]} -ne 0 ]; then
+        error "The following ports are in use: ${used_ports[*]}"
+        echo "Please free up these ports before continuing"
+        exit 1
+    fi
+    
+    log "All required ports are available"
+}
+
+# Function to backup existing configuration
+backup_existing_config() {
+    if [ -d "/odoo" ]; then
+        local BACKUP_DIR="/odoo_backup_$(date +%Y%m%d_%H%M%S)"
+        warn "Existing /odoo directory found"
+        log "Backing up existing /odoo directory to $BACKUP_DIR"
+        sudo cp -r /odoo "$BACKUP_DIR"
+        log "Backup completed"
+    fi
+}
+
 # Function to handle PostgreSQL
 check_postgresql() {
     log "Checking for existing PostgreSQL installation..."
@@ -230,47 +275,6 @@ check_postgresql() {
     else
         log "No existing PostgreSQL installation found."
     fi
-}
-
-# Function to verify Docker installation
-verify_docker() {
-    log "Verifying Docker installation..."
-    
-    # Test Docker installation
-    if ! command -v docker &> /dev/null; then
-        error "Docker is not installed"
-        exit 1
-    fi
-    
-    if ! docker info &> /dev/null; then
-        error "Docker daemon is not running"
-        exit 1
-    fi
-    
-    if ! docker run --rm hello-world &> /dev/null; then
-        error "Docker installation verification failed"
-        exit 1
-    fi
-    log "Docker installation verified successfully"
-    
-    # Test Docker Compose installation
-    if ! command -v docker compose &> /dev/null; then
-        error "Docker Compose is not installed"
-        exit 1
-    fi
-    
-    local compose_version
-    if ! compose_version=$(docker compose version --short 2>/dev/null); then
-        error "Failed to get Docker Compose version"
-        exit 1
-    fi
-    
-    if ! awk -v ver="$compose_version" 'BEGIN{if (ver < 2.0) exit 1; exit 0}'; then
-        error "Docker Compose version must be 2.0 or higher. Found: $compose_version"
-        exit 1
-    fi
-    
-    log "Docker Compose installation verified successfully"
 }
 
 # Function to copy Docker Compose files
@@ -508,83 +512,13 @@ EOF
     log "Make sure to keep this file secure and backed up"
 }
 
-# Function to verify SSL certificates
-verify_ssl_certificates() {
-    log "Verifying SSL certificate paths..."
-    local ssl_dir="/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
-    
-    if [ ! -f "${ssl_dir}/fullchain.pem" ] || [ ! -f "${ssl_dir}/privkey.pem" ]; then
-        warn "SSL certificates not found at ${ssl_dir}"
-        warn "You will need to obtain SSL certificates using certbot"
-        warn "Run: certbot certonly --webroot -w /odoo/nginx/letsencrypt -d ${NGINX_DOMAIN}"
-    else
-        log "SSL certificates found"
-    fi
-}
-
-# Function to verify package versions
-verify_package_versions() {
-    log "Verifying package versions..."
-    local required_packages=(
-        "python3:3.8.0"
-        "openssl:1.1.1"
-        "nginx:1.18.0"
-    )
-    
-    for package in "${required_packages[@]}"; do
-        IFS=':' read -r name min_version <<< "$package"
-        if ! command -v "$name" &> /dev/null; then
-            error "Required package $name is not installed"
-            exit 1
-        fi
-        
-        current_version=$("$name" --version 2>&1 | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-        if ! awk -v ver="$current_version" -v min="$min_version" 'BEGIN{if (ver < min) exit 1; exit 0}'; then
-            error "Package $name version $current_version is below minimum required version $min_version"
-            exit 1
-        fi
-    done
-}
-
-# Function to verify container configurations
-verify_container_configs() {
-    log "Verifying container configurations..."
-    
-    # Check restart policies
-    if ! grep -q "restart: unless-stopped" docker-compose.yml; then
-        error "Container restart policy not properly configured"
-        exit 1
-    fi
-    
-    # Validate mount points
-    local required_mounts=(
-        "/odoo/config"
-        "/odoo/addons"
-        "/odoo/logs"
-        "/odoo/data"
-        "/odoo/nginx/conf"
-        "/odoo/nginx/ssl"
-    )
-    
-    for mount in "${required_mounts[@]}"; do
-        if [ ! -d "$mount" ]; then
-            error "Required mount point $mount does not exist"
-            exit 1
-        fi
-        
-        if ! mountpoint -q "$mount" 2>/dev/null; then
-            warn "Mount point $mount is not currently mounted"
-        fi
-    done
-}
-
 # Main installation process
 main() {
     log "=== Starting Odoo Production Installation ==="
 
     # Initial checks
     check_system_requirements
-    verify_package_versions
+    verify_docker
     
     # Handle existing services first
     log "1. Handling existing services..."
