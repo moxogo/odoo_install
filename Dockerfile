@@ -8,7 +8,7 @@ ENV PIP_NO_CACHE_DIR=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Create necessary directories and set permissions
-RUN mkdir -p /var/lib/odoo /mnt/extra-addons /var/log/odoo \
+RUN mkdir -p /var/lib/odoo /mnt/extra-addons /mnt/extra-addons/moxogo18 /var/log/odoo \
     && chown -R odoo:odoo /var/lib/odoo /mnt/extra-addons /var/log/odoo \
     && chmod -R 755 /mnt/extra-addons /var/log/odoo
 
