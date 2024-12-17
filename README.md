@@ -114,6 +114,70 @@ work_mem = 10485kB
 max_connections = 100
 ```
 
+## Installation Process
+
+The installation script performs the following checks and configurations:
+
+### Pre-installation Checks
+1. System Requirements
+   - CPU cores and RAM verification
+   - Disk space validation
+   - Operating system compatibility
+
+2. Package Version Verification
+   - Python 3.8.0 or higher
+   - OpenSSL 1.1.1 or higher
+   - Nginx 1.18.0 or higher
+
+3. Service Conflict Resolution
+   - Handles existing Nginx installations
+   - Manages PostgreSQL conflicts
+   - Verifies port availability
+
+### Security Configuration
+1. SSL Certificate Management
+   - Validates SSL certificate paths
+   - Automated certificate verification
+   - Certbot integration for Let's Encrypt
+
+2. File Permissions
+   - Secure configuration files (640)
+   - Protected password storage (600)
+   - Controlled log access (750)
+
+3. Container Security
+   - Restart policy verification
+   - Mount point validation
+   - Network isolation checks
+
+### Production Readiness
+1. Directory Structure
+   ```
+   /odoo/
+   ├── config/
+   │   ├── odoo.conf
+   │   ├── postgresql.conf
+   │   └── entrypoint.sh
+   ├── nginx/
+   │   ├── conf/
+   │   ├── ssl/
+   │   └── letsencrypt/
+   ├── addons/
+   ├── logs/
+   ├── data/
+   └── backup/
+   ```
+
+2. Environment Variables
+   - Secure password generation
+   - Redis session management
+   - Service configurations
+
+3. Container Health Checks
+   - Service availability monitoring
+   - Resource usage tracking
+   - Automated recovery
+
 ## Services
 
 ### Core Services
@@ -241,6 +305,32 @@ docker compose exec redis redis-cli info
 - Redis: stdout of Redis container
 - Backup: stdout of backup container
 
+## Troubleshooting Installation Issues
+
+#### Common Issues
+
+1. SSL Certificate Problems
+   ```bash
+   # Generate new certificates
+   certbot certonly --webroot -w /odoo/nginx/letsencrypt -d your-domain.com
+   ```
+
+2. Permission Issues
+   ```bash
+   # Fix common permission problems
+   sudo chown -R $USER:$USER /odoo
+   sudo chmod -R 750 /odoo
+   sudo chmod 600 /odoo/.passwords
+   ```
+
+3. Container Mount Issues
+   ```bash
+   # Verify mount points
+   docker compose config
+   # Check volume permissions
+   ls -la /odoo/*/
+   ```
+
 ## Support and Updates
 
 For support:
@@ -258,4 +348,3 @@ docker compose up -d
 
 # Update system packages
 sudo apt update && sudo apt upgrade -y
-```

@@ -283,13 +283,23 @@ copy_docker_files() {
         "Dockerfile"
         "requirements.txt"
         "requirements.custom.txt"
+        ".env.example"
     )
     
     local CONFIG_FILES=(
-        "postgresql.conf"
         "odoo.conf"
+        "entrypoint.sh"
         "nginx.conf"
+        "postgresql.conf"
     )
+    
+    # Create necessary directories
+    sudo mkdir -p "/odoo/"{config,addons,logs,nginx/{conf,ssl,letsencrypt},data,backup}
+    sudo mkdir -p "/odoo/moxogo18"
+    
+    # Set directory permissions
+    sudo chown -R $USER:$USER "/odoo"
+    sudo chmod -R 755 "/odoo"
     
     # Check if required files exist in script directory
     for file in "${REQUIRED_FILES[@]}"; do
@@ -306,7 +316,7 @@ copy_docker_files() {
             exit 1
         fi
         # Set proper permissions
-        if ! sudo chown root:$USER "/odoo/$file"; then
+        if ! sudo chown $USER:$USER "/odoo/$file"; then
             error "Failed to set ownership for /odoo/$file"
             exit 1
         fi
@@ -319,193 +329,49 @@ copy_docker_files() {
     # Handle configuration files
     log "Setting up configuration files..."
     
-    # Create default configuration files if they don't exist
-    if [ ! -f "$SCRIPT_DIR/odoo.conf" ]; then
-        log "Creating default odoo.conf..."
-        cat > "$SCRIPT_DIR/odoo.conf" << 'EOL'
-[options]
-addons_path = /mnt/extra-addons
-data_dir = /var/lib/odoo
-admin_passwd = ${ADMIN_PASSWORD}
-
-# HTTP Service Configuration
-http_port = 8069
-http_interface = 0.0.0.0
-proxy_mode = True
-xmlrpc_port = 8069
-
-# Database Configuration
-db_host = db
-db_port = 5432
-db_user = ${POSTGRES_USER}
-db_password = ${POSTGRES_PASSWORD}
-db_name = ${POSTGRES_DB}
-
-# Performance Tuning
-workers = 4
-max_cron_threads = 2
-limit_memory_hard = 2684354560
-limit_memory_soft = 2147483648
-limit_request = 8192
-limit_time_cpu = 600
-limit_time_real = 1200
-
-# Logging Configuration
-log_level = info
-logfile = /var/log/odoo/odoo.log
-logrotate = True
-
-# Security
-list_db = False
-server_wide_modules = web,base
-EOL
-    fi
-    
-    if [ ! -f "$SCRIPT_DIR/nginx.conf" ]; then
-        log "Creating default nginx.conf..."
-        cat > "$SCRIPT_DIR/nginx.conf" << 'EOL'
-upstream odoo {
-    server odoo:8069;
-}
-
-upstream odoochat {
-    server odoo:8072;
-}
-
-server {
-    listen 80;
-    server_name ${DOMAIN};
-
-    # Redirect all HTTP requests to HTTPS
-    location / {
-        return 301 https://$server_name$request_uri;
-    }
-
-    # Let's Encrypt challenge
-    location /.well-known/acme-challenge/ {
-        root /var/www/letsencrypt;
-        try_files $uri =404;
-    }
-}
-
-server {
-    listen 443 ssl http2;
-    server_name ${DOMAIN};
-
-    # SSL Configuration
-    ssl_certificate /etc/nginx/ssl/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/live/${DOMAIN}/privkey.pem;
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:SSL:50m;
-    ssl_session_tickets off;
-
-    # Modern configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-
-    # HSTS
-    add_header Strict-Transport-Security "max-age=63072000" always;
-
-    # Proxy headers
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
-
-    # Log files
-    access_log /var/log/nginx/odoo.access.log;
-    error_log /var/log/nginx/odoo.error.log;
-
-    # Cache static files
-    location ~* /web/static/ {
-        proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
-        proxy_cache_valid 200 60m;
-        proxy_buffering on;
-        expires 864000;
-        proxy_pass http://odoo;
-    }
-
-    # Websocket support for Odoo chat
-    location /websocket {
-        proxy_pass http://odoochat;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Common locations
-    location / {
-        proxy_pass http://odoo;
-        proxy_read_timeout 720s;
-        proxy_connect_timeout 720s;
-        proxy_send_timeout 720s;
-        proxy_buffering on;
-        proxy_buffer_size 128k;
-        proxy_buffers 4 256k;
-        proxy_busy_buffers_size 256k;
-    }
-
-    # Gzip compression
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-    gzip_min_length 1000;
-    gzip_proxied expired no-cache no-store private auth;
-}
-EOL
-    fi
-    
     # Copy configuration files to their respective locations
     for file in "${CONFIG_FILES[@]}"; do
-        if [ -f "$SCRIPT_DIR/$file" ]; then
-            case "$file" in
-                "odoo.conf")
-                    if ! sudo cp "$SCRIPT_DIR/$file" "/odoo/config/$file"; then
-                        error "Failed to copy $file to config directory"
-                        exit 1
-                    fi
-                    if ! sudo chown root:$USER "/odoo/config/$file"; then
-                        error "Failed to set ownership for $file"
-                        exit 1
-                    fi
-                    if ! sudo chmod 640 "/odoo/config/$file"; then
-                        error "Failed to set permissions for $file"
-                        exit 1
-                    fi
-                    ;;
-                "nginx.conf")
-                    if ! sudo cp "$SCRIPT_DIR/$file" "/odoo/nginx/conf/$file"; then
-                        error "Failed to copy $file"
-                        exit 1
-                    fi
-                    if ! sudo chown root:$USER "/odoo/nginx/conf/$file"; then
-                        error "Failed to set ownership for $file"
-                        exit 1
-                    fi
-                    if ! sudo chmod 640 "/odoo/nginx/conf/$file"; then
-                        error "Failed to set permissions for $file"
-                        exit 1
-                    fi
-                    ;;
-                "postgresql.conf")
-                    if ! sudo cp "$SCRIPT_DIR/$file" "/odoo/$file"; then
-                        error "Failed to copy $file"
-                        exit 1
-                    fi
-                    if ! sudo chown root:$USER "/odoo/$file"; then
-                        error "Failed to set ownership for $file"
-                        exit 1
-                    fi
-                    if ! sudo chmod 640 "/odoo/$file"; then
-                        error "Failed to set permissions for $file"
-                        exit 1
-                    fi
-                    ;;
-            esac
+        local src_file="$SCRIPT_DIR/config/$file"
+        case "$file" in
+            "nginx.conf")
+                local dest_file="/odoo/nginx/conf/$file"
+                ;;
+            "postgresql.conf")
+                local dest_file="/odoo/config/$file"
+                ;;
+            *)
+                local dest_file="/odoo/config/$file"
+                ;;
+        esac
+        
+        if [ -f "$src_file" ]; then
+            if ! sudo cp "$src_file" "$dest_file"; then
+                error "Failed to copy $file to $(dirname "$dest_file")"
+                exit 1
+            fi
+            if ! sudo chown $USER:$USER "$dest_file"; then
+                error "Failed to set ownership for $file"
+                exit 1
+            fi
+            if ! sudo chmod 640 "$dest_file"; then
+                error "Failed to set permissions for $file"
+                exit 1
+            fi
         else
-            warn "Optional configuration file $file not found, skipping..."
+            warn "Configuration file $file not found at $src_file"
         fi
     done
+    
+    # Make entrypoint.sh executable
+    sudo chmod +x "/odoo/config/entrypoint.sh"
+    
+    # Create SSL directory for nginx
+    sudo mkdir -p "/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
+    sudo chmod -R 750 "/odoo/nginx/ssl"
+    
+    # Create letsencrypt directory
+    sudo mkdir -p "/odoo/nginx/letsencrypt"
+    sudo chmod 755 "/odoo/nginx/letsencrypt"
     
     log "Docker Compose files copied successfully"
 }
@@ -642,12 +508,83 @@ EOF
     log "Make sure to keep this file secure and backed up"
 }
 
+# Function to verify SSL certificates
+verify_ssl_certificates() {
+    log "Verifying SSL certificate paths..."
+    local ssl_dir="/odoo/nginx/ssl/live/${NGINX_DOMAIN}"
+    
+    if [ ! -f "${ssl_dir}/fullchain.pem" ] || [ ! -f "${ssl_dir}/privkey.pem" ]; then
+        warn "SSL certificates not found at ${ssl_dir}"
+        warn "You will need to obtain SSL certificates using certbot"
+        warn "Run: certbot certonly --webroot -w /odoo/nginx/letsencrypt -d ${NGINX_DOMAIN}"
+    else
+        log "SSL certificates found"
+    fi
+}
+
+# Function to verify package versions
+verify_package_versions() {
+    log "Verifying package versions..."
+    local required_packages=(
+        "python3:3.8.0"
+        "openssl:1.1.1"
+        "nginx:1.18.0"
+    )
+    
+    for package in "${required_packages[@]}"; do
+        IFS=':' read -r name min_version <<< "$package"
+        if ! command -v "$name" &> /dev/null; then
+            error "Required package $name is not installed"
+            exit 1
+        fi
+        
+        current_version=$("$name" --version 2>&1 | grep -oP '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if ! awk -v ver="$current_version" -v min="$min_version" 'BEGIN{if (ver < min) exit 1; exit 0}'; then
+            error "Package $name version $current_version is below minimum required version $min_version"
+            exit 1
+        fi
+    done
+}
+
+# Function to verify container configurations
+verify_container_configs() {
+    log "Verifying container configurations..."
+    
+    # Check restart policies
+    if ! grep -q "restart: unless-stopped" docker-compose.yml; then
+        error "Container restart policy not properly configured"
+        exit 1
+    fi
+    
+    # Validate mount points
+    local required_mounts=(
+        "/odoo/config"
+        "/odoo/addons"
+        "/odoo/logs"
+        "/odoo/data"
+        "/odoo/nginx/conf"
+        "/odoo/nginx/ssl"
+    )
+    
+    for mount in "${required_mounts[@]}"; do
+        if [ ! -d "$mount" ]; then
+            error "Required mount point $mount does not exist"
+            exit 1
+        fi
+        
+        if ! mountpoint -q "$mount" 2>/dev/null; then
+            warn "Mount point $mount is not currently mounted"
+        fi
+    done
+}
+
 # Main installation process
 main() {
     log "=== Starting Odoo Production Installation ==="
 
     # Initial checks
     check_system_requirements
+    verify_package_versions
     
     # Handle existing services first
     log "1. Handling existing services..."
@@ -700,7 +637,7 @@ main() {
 
     # 6. Create directory structure with secure permissions
     log "6. Creating directory structure..."
-    if ! sudo mkdir -p /odoo/{config,addons,nginx/{conf,ssl,letsencrypt},logs,moxogo18,static}; then
+    if ! sudo mkdir -p /odoo/{config,addons,logs,nginx/{conf,ssl,letsencrypt},data,backup}; then
         error "Failed to create directory structure"
         exit 1
     fi
@@ -727,8 +664,14 @@ main() {
     # 8. Handle .env file
     create_env_file
 
-    # 9. Configure firewall
-    # log "9. Configuring firewall..."
+    # 9. Verify container configurations
+    verify_container_configs
+    
+    # 10. Verify SSL certificates
+    verify_ssl_certificates
+
+    # 11. Configure firewall
+    # log "11. Configuring firewall..."
     # sudo ufw allow 22/tcp
     # sudo ufw allow 80/tcp
     # sudo ufw allow 443/tcp
