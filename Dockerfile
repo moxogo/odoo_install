@@ -2,12 +2,19 @@ FROM odoo:18
 
 USER root
 
+# Create necessary directories first
+RUN mkdir -p /odoo /odoo /var/log/odoo
+
 # Create or update odoo user
-RUN if getent group odoo > /dev/null; then \
-        usermod -d /odoo -m odoo || true; \
+RUN if ! getent group odoo > /dev/null; then \
+        groupadd -r odoo; \
+    fi && \
+    if ! getent passwd odoo > /dev/null; then \
+        useradd -r -g odoo -d /odoo -s /sbin/nologin odoo; \
     else \
-        groupadd -r odoo && useradd -r -g odoo -d /odoo -s /sbin/nologin odoo; \
-    fi
+        usermod -d /odoo odoo; \
+    fi && \
+    chown -R odoo:odoo /odoo  /var/log/odoo
 
 # Install system dependencies (without PostgreSQL packages first)
 RUN apt-get update && \
@@ -44,11 +51,8 @@ COPY requirements.custom.txt /tmp/requirements.custom.txt
 # Install Python dependencies
 RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed psycopg2-binary && \
     pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.txt && \
-    pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.custom.txt
-
-# Create necessary directories and set permissions
-RUN mkdir -p /odoo /var/lib/odoo /var/log/odoo && \
-    chown -R odoo:odoo /odoo /var/lib/odoo /var/log/odoo /tmp/requirements.txt /tmp/requirements.custom.txt
+    pip3 install --no-cache-dir --break-system-packages --ignore-installed -r /tmp/requirements.custom.txt && \
+    chown odoo:odoo /tmp/requirements.txt /tmp/requirements.custom.txt
 
 # Switch to odoo user
 USER odoo
