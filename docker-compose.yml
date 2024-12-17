@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: odoo18
-    user: odoo
+    user: root
     depends_on:
       - db
       - redis
@@ -19,23 +19,10 @@ services:
       - PROMETHEUS_MULTIPROC_DIR=/tmp
     volumes:
       - odoo-web-data:/var/lib/odoo
-      - type: bind
-        source: ./config
-        target: /etc/odoo
-        read_only: true
-      - type: bind
-        source: ./addons
-        target: /mnt/extra-addons
-      - type: bind
-        source: ./moxogo18
-        target: /mnt/extra-addons/moxogo18
-      - type: bind
-        source: ./logs
-        target: /var/log/odoo
-      # - ./config:/etc/odoo
-      # - ./addons:/mnt/extra-addons
-      # - ./moxogo18:/mnt/extra-addons/moxogo18
-      # - ./logs:/var/log/odoo
+      - ./config:/etc/odoo:Z
+      - ./addons:/mnt/extra-addons:Z
+      - ./moxogo18:/mnt/extra-addons/moxogo18:Z
+      - ./logs:/var/log/odoo:Z
     ports:
       - "127.0.0.1:8069:8069"
       - "127.0.0.1:8072:8072"
@@ -93,12 +80,19 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - odoo-db-data:/var/lib/postgresql/data
+      - type: volume
+        source: odoo-db-data
+        target: /var/lib/postgresql/data
       - type: bind
         source: ./postgresql.conf
         target: /etc/postgresql/postgresql.conf
-        read_only: true
-    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+        read_only: false
+    command: >
+      bash -c "
+        chmod 600 /etc/postgresql/postgresql.conf &&
+        chown postgres:postgres /etc/postgresql/postgresql.conf &&
+        postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+      "
     expose:
       - "5432"
     networks:
