@@ -514,10 +514,27 @@ EOL
 handle_passwords() {
     local password_file="$INSTALL_DIR/.passwords"
     
+    # Initialize passwords
+    POSTGRES_PASSWORD=""
+    ODOO_ADMIN_PASSWORD=""
+    REDIS_PASSWORD=""
+    
     # If password file exists, load the passwords
     if [ -f "$password_file" ]; then
         log "Loading existing passwords..."
         source "$password_file"
+        
+        # Check if Redis password exists in old file, if not generate it
+        if [ -z "$REDIS_PASSWORD" ]; then
+            log "Generating new Redis password..."
+            REDIS_PASSWORD=$(openssl rand -base64 32)
+            {
+                echo "POSTGRES_PASSWORD='$POSTGRES_PASSWORD'"
+                echo "ODOO_ADMIN_PASSWORD='$ODOO_ADMIN_PASSWORD'"
+                echo "REDIS_PASSWORD='$REDIS_PASSWORD'"
+            } > "$password_file"
+            chmod 600 "$password_file"
+        fi
     else
         log "Generating new passwords..."
         # Generate new passwords
@@ -534,6 +551,12 @@ handle_passwords() {
         
         # Secure the password file
         chmod 600 "$password_file"
+    fi
+    
+    # Verify all passwords are set
+    if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$ODOO_ADMIN_PASSWORD" ] || [ -z "$REDIS_PASSWORD" ]; then
+        error "One or more passwords are not set properly"
+        exit 1
     fi
 }
 
