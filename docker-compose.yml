@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   odoo:
     build:
@@ -6,20 +8,24 @@ services:
     container_name: odoo18
     depends_on:
       - db
+      - redis
     env_file: .env
     environment:
       - HOST=db
       - USER=${ODOO_DB_USER}
       - PASSWORD=${ODOO_DB_PASSWORD}
+      - REDIS_HOST=redis
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
     volumes:
       - odoo-web-data:/var/lib/odoo
       - ./config:/etc/odoo:ro
-      - ./addons:/mnt/extra-addons:ro
-      - ./moxogo18:/mnt/extra-addons/moxogo18
+      - ./addons:/mnt/extra-addons
+      - ./moxogo18:/mnt/extra-addons/moxogo18:rw
       - ./logs:/var/log/odoo
-    expose:
-      - "8069"
-      - "8072"
+      - /tmp:/tmp
+    ports:
+      - "127.0.0.1:8069:8069"
+      - "127.0.0.1:8072:8072"
     networks:
       odoo_network:
         aliases:
@@ -41,6 +47,16 @@ services:
           memory: 2G
     security_opt:
       - no-new-privileges:true
+      - seccomp=default
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
     cap_drop:
       - ALL
     cap_add:
@@ -53,6 +69,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+        compress: "true"
+        tag: "{{.Name}}"
 
   db:
     image: ${POSTGRES_IMAGE}
@@ -66,6 +84,7 @@ services:
     volumes:
       - odoo-db-data:/var/lib/postgresql/data/pgdata
       - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     expose:
       - "5432"
     networks:
@@ -89,6 +108,16 @@ services:
           memory: 1G
     security_opt:
       - no-new-privileges:true
+      - seccomp=default
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
     cap_drop:
       - ALL
     cap_add:
@@ -100,6 +129,76 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+        compress: "true"
+        tag: "{{.Name}}"
+
+  backup:
+    image: prodrigestivill/postgres-backup-local
+    container_name: odoo18_backup
+    restart: unless-stopped
+    volumes:
+      - odoo-db-backup:/backups
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - SCHEDULE=${BACKUP_SCHEDULE:-@daily}
+      - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS:-7}
+      - BACKUP_KEEP_WEEKS=${BACKUP_KEEP_WEEKS:-4}
+      - BACKUP_KEEP_MONTHS=${BACKUP_KEEP_MONTHS:-6}
+    networks:
+      - odoo_network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+  redis:
+    image: redis:alpine
+    container_name: odoo18_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      odoo_network:
+        aliases:
+          - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: odoo18_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@localhost}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - odoo_network
+    restart: unless-stopped
+    profiles:
+      - dev
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
 
   nginx:
     image: ${NGINX_IMAGE}
@@ -180,19 +279,11 @@ services:
 
 networks:
   odoo_network:
-    name: odoo18_network
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: odoo18_network
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/16
 
 volumes:
   odoo-web-data:
-    name: odoo18_web_data
-    driver: local
   odoo-db-data:
-    name: odoo18_db_data
-    driver: local
+  odoo-db-backup:
+  redis-data:
+  pgadmin-data:

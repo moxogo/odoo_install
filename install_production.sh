@@ -589,6 +589,10 @@ POSTGRES_CPU_LIMIT=2
 POSTGRES_MEMORY_LIMIT=2G
 NGINX_CPU_LIMIT=1
 NGINX_MEMORY_LIMIT=1G
+
+# Nginx & SSL Configuration
+NGINX_DOMAIN=\${NGINX_DOMAIN:-localhost}
+CERTBOT_EMAIL=\${CERTBOT_EMAIL:-admin@localhost}
 EOF
 
     # Secure the .env file

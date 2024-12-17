@@ -11,6 +11,39 @@ This repository contains a production-ready Odoo 18 setup using Docker with enha
 - Docker Engine 20.10.x or later
 - Docker Compose V2
 
+## Features
+
+### Performance Optimizations
+- Redis session store for improved performance
+- PostgreSQL optimized configuration
+- Worker and process management
+- Memory management and limits
+- Connection pooling
+
+### Security Features
+- Automatic firewall configuration with UFW
+- Secure file permissions
+- Protected environment variables
+- Non-root container execution
+- Limited container capabilities
+- Read-only root filesystem
+- Seccomp profiles
+- Network isolation
+
+### Monitoring & Maintenance
+- Prometheus metrics integration
+- Container health checks
+- Resource usage monitoring
+- Automated database backups
+- Log rotation and management
+- Redis cache monitoring
+
+### Development Tools
+- pgAdmin 4 web interface (dev profile)
+- Database management tools
+- Enhanced logging for debugging
+- Test environment configuration
+
 ## Quick Start
 
 1. Clone the repository:
@@ -25,214 +58,204 @@ This repository contains a production-ready Odoo 18 setup using Docker with enha
    sudo ./install_production.sh
    ```
 
-## Detailed Installation Steps
+3. Start development tools (optional):
+   ```bash
+   docker compose --profile dev up -d
+   ```
 
-### 1. Pre-Installation Checks
+## Configuration Files
 
-The installation script automatically performs these checks:
-- System requirements verification
-- Port availability (80, 443, 5432, 8069, 8072)
-- Existing services (Nginx, PostgreSQL)
-- Directory permissions
-- Docker installation
-
-### 2. Security Features
-
-- Automatic firewall configuration with UFW
-- Secure file permissions
-- Protected environment variables
-- Non-root container execution
-- Limited container capabilities
-- Automated security updates
-- SSL/TLS configuration
-
-### 3. Directory Structure
-
-```
-/odoo/
-├── addons/             # Custom and community addons
-├── config/             # Odoo configuration
-├── nginx/              # Nginx configuration
-│   ├── conf/          # Server blocks
-│   ├── ssl/           # SSL certificates
-│   └── letsencrypt/   # Let's Encrypt challenges
-├── logs/              # Log files
-└── static/            # Static files
-```
-
-### 4. Configuration Files
-
-#### Environment Variables (.env)
+### Environment Variables (.env)
 ```bash
+# PostgreSQL Configuration
 POSTGRES_DB=postgres
 POSTGRES_USER=odoo
 POSTGRES_PASSWORD=<generated>
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+
+# Odoo Configuration
 ODOO_ADMIN_PASSWD=<generated>
-DOMAIN=your-domain.com
-EMAIL=your-email@domain.com
+ODOO_DB_USER=odoo
+ODOO_PROXY_MODE=True
+
+# Nginx & SSL Configuration
+NGINX_DOMAIN=your-domain.com
+CERTBOT_EMAIL=your-email@example.com
+
+# Backup Configuration
+BACKUP_SCHEDULE=@daily
+BACKUP_KEEP_DAYS=7
+BACKUP_KEEP_WEEKS=4
+BACKUP_KEEP_MONTHS=6
+
+# Development Tools
+PGADMIN_EMAIL=admin@localhost
+PGADMIN_PASSWORD=admin
 ```
 
-#### PostgreSQL Configuration
-- Optimized for production use
-- Automatic backup configuration
-- Connection pooling
-- Performance monitoring
+### Redis Configuration
+Redis is configured for session storage with the following settings:
+```ini
+session_redis = True
+session_redis_host = ${REDIS_HOST}
+session_redis_port = 6379
+session_redis_prefix = odoo
+session_redis_expiration = 86400
+```
 
-#### Nginx Configuration
-- SSL/TLS configuration
-- HTTP/2 support
-- Reverse proxy settings
-- Load balancing (if multiple workers)
+### PostgreSQL Optimization
+Key PostgreSQL settings for optimal performance:
+```ini
+shared_buffers = 1GB
+effective_cache_size = 3GB
+maintenance_work_mem = 256MB
+work_mem = 10485kB
+max_connections = 100
+```
+
+## Services
+
+### Core Services
+- Odoo 18 Application Server
+- PostgreSQL 16 Database
+- Nginx Reverse Proxy
+- Redis Session Store
+
+### Maintenance Services
+- Automated Database Backup
+- Log Management
+- Health Monitoring
+
+### Development Services (Optional)
+- pgAdmin 4 Web Interface
+- Database Management Tools
 
 ## Maintenance Commands
 
-### Database Management
+### Service Management
+```bash
+# Start all services
+docker compose up -d
 
-1. Create Backup:
-   ```bash
-   docker exec -t odoo16-db pg_dump -U odoo postgres > backup.sql
-   ```
+# Start with development tools
+docker compose --profile dev up -d
 
-2. Restore Backup:
-   ```bash
-   cat backup.sql | docker exec -i odoo16-db psql -U odoo postgres
-   ```
+# View logs
+docker compose logs -f [service_name]
 
-### Container Management
+# Stop services
+docker compose down
+```
 
-1. Start Services:
-   ```bash
-   cd /odoo && docker compose up -d
-   ```
+### Backup Management
+```bash
+# Manual backup
+docker exec odoo18_backup backup
 
-2. Stop Services:
-   ```bash
-   docker compose down
-   ```
+# View backup logs
+docker compose logs backup
 
-3. View Logs:
-   ```bash
-   docker compose logs -f
-   ```
+# List backups
+ls -l /odoo/backups
+```
 
-4. Update Containers:
-   ```bash
-   docker compose pull
-   docker compose up -d
-   ```
+### Cache Management
+```bash
+# Clear Redis cache
+docker compose exec redis redis-cli FLUSHALL
 
-### SSL Certificate Management
-
-1. Initial Certificate:
-   ```bash
-   sudo certbot certonly --webroot -w /odoo/nginx/letsencrypt -d your-domain.com
-   ```
-
-2. Renew Certificate:
-   ```bash
-   sudo certbot renew
-   ```
+# Monitor Redis
+docker compose exec redis redis-cli info
+```
 
 ## Monitoring
 
-### System Monitoring
-- Container health checks
-- Resource usage monitoring
-- Log monitoring
-- Database performance monitoring
+### Health Checks
+- Odoo application health check at `/web/health`
+- PostgreSQL connection monitoring
+- Redis connection status
+- Backup service status
 
-### Security Monitoring
-- Failed login attempts
-- System access logs
-- File integrity monitoring
-- Network security monitoring
+### Resource Monitoring
+- Container CPU and memory usage
+- Disk space monitoring
+- Network traffic monitoring
+- Cache hit/miss rates
 
-## Backup Strategy
+### Log Management
+- Centralized logging
+- Log rotation
+- Error tracking
+- Performance metrics
 
-### Automated Backups
-- Daily database backups
-- Weekly full system backups
-- Secure offsite storage
-- Backup rotation policy
+## Security Best Practices
 
-### Backup Verification
-- Automated backup testing
-- Restore verification
-- Data integrity checks
+### System Security
+- Regular security updates
+- Firewall configuration
+- SSL/TLS configuration
+- File permissions
+
+### Container Security
+- Non-root execution
+- Limited capabilities
+- Read-only filesystem
+- Network isolation
+
+### Access Control
+- Strong password policies
+- API access control
+- Database access restrictions
+- Admin interface protection
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. Port Conflicts:
+1. Redis Connection Issues:
    ```bash
-   sudo netstat -tulpn | grep -E ':(80|443|5432|8069|8072)'
+   docker compose logs redis
+   docker compose exec redis redis-cli ping
    ```
 
-2. Permission Issues:
+2. Backup Service Issues:
    ```bash
-   sudo chown -R root:$USER /odoo
-   sudo chmod -R 750 /odoo
+   docker compose logs backup
+   docker compose exec backup ls -l /backups
    ```
 
-3. Docker Issues:
+3. Performance Issues:
    ```bash
-   docker compose down
-   docker system prune
-   docker compose up -d
+   # Check Redis stats
+   docker compose exec redis redis-cli info stats
+
+   # Check PostgreSQL activity
+   docker compose exec db psql -U odoo -c "SELECT * FROM pg_stat_activity;"
    ```
 
 ### Log Locations
-- Odoo Logs: `/odoo/logs/odoo/`
-- Nginx Logs: `/odoo/logs/nginx/`
-- PostgreSQL Logs: `/odoo/logs/postgresql/`
+- Odoo: `/var/log/odoo/odoo.log`
+- PostgreSQL: `/var/log/postgresql/`
+- Nginx: `/var/log/nginx/`
+- Redis: stdout of Redis container
+- Backup: stdout of backup container
 
-## Security Best Practices
+## Support and Updates
 
-1. Regular Updates:
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   docker compose pull
-   ```
+For support:
+1. Check the logs
+2. Review configuration files
+3. Verify service health
+4. Check resource usage
+5. Review security settings
 
-2. Firewall Rules:
-   ```bash
-   sudo ufw status
-   sudo ufw enable
-   ```
+Regular updates:
+```bash
+# Update all services
+docker compose pull
+docker compose up -d
 
-3. SSL/TLS Configuration:
-   - Minimum TLS 1.2
-   - Strong cipher suites
-   - HSTS enabled
-   - Regular certificate renewal
-
-## Performance Tuning
-
-### Odoo Configuration
-- Worker configuration
-- Memory management
-- Cache settings
-- Database optimization
-
-### PostgreSQL Tuning
-- Memory allocation
-- Connection pooling
-- Query optimization
-- Vacuum settings
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For issues and feature requests, please create an issue in the repository.
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+```

@@ -15,3 +15,7 @@ paramiko
 pydrive2
 openpyxl
 sortedcontainers
+redis>=4.5.4
+prometheus-client>=0.17.1
+psutil>=5.9.5
+py-healthcheck>=1.10.1
