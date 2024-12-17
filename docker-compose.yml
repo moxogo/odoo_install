@@ -6,16 +6,18 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: odoo18
-    user: root
+    user: odoo
     depends_on:
       - db
       - redis
     env_file: .env
     environment:
       - HOST=db
-      - USER=${ODOO_DB_USER}
-      - PASSWORD=${ODOO_DB_PASSWORD}
+      - PORT=5432
+      - USER=odoo
+      - PASSWORD=odoo
       - REDIS_HOST=redis
+      - REDIS_PASSWORD=odoo
       - PROMETHEUS_MULTIPROC_DIR=/tmp
     volumes:
       - odoo-web-data:/var/lib/odoo
@@ -75,20 +77,10 @@ services:
     user: postgres
     env_file: .env
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
       - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
-      - POSTGRES_MAX_CONNECTIONS=100
-      - POSTGRES_SHARED_BUFFERS=256MB
-      - POSTGRES_EFFECTIVE_CACHE_SIZE=768MB
-      - POSTGRES_MAINTENANCE_WORK_MEM=64MB
-      - POSTGRES_CHECKPOINT_COMPLETION_TARGET=0.9
-      - POSTGRES_WAL_BUFFERS=16MB
-      - POSTGRES_DEFAULT_STATISTICS_TARGET=100
-      - POSTGRES_RANDOM_PAGE_COST=1.1
-      - POSTGRES_EFFECTIVE_IO_CONCURRENCY=200
     volumes:
       - odoo-db-data:/var/lib/postgresql/data
     expose:
@@ -99,7 +91,7 @@ services:
           - db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U odoo -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -112,8 +104,6 @@ services:
         reservations:
           cpus: '1'
           memory: 1G
-    security_opt:
-      - no-new-privileges:true
     tmpfs:
       - /tmp
       - /var/run/postgresql
@@ -128,13 +118,6 @@ services:
       - SETUID
       - DAC_OVERRIDE
       - FOWNER
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        compress: "true"
-        tag: "{{.Name}}"
 
   backup:
     image: prodrigestivill/postgres-backup-local
@@ -157,9 +140,12 @@ services:
       - no-new-privileges:true
 
   redis:
-    image: redis:alpine
+    image: ${REDIS_IMAGE}
     container_name: odoo18_redis
-    command: redis-server --appendonly yes
+    command: redis-server --requirepass odoo
+    user: redis
+    environment:
+      - REDIS_PASSWORD=odoo
     volumes:
       - redis-data:/data
     networks:
@@ -168,7 +154,7 @@ services:
           - redis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "odoo", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -177,14 +163,11 @@ services:
         limits:
           cpus: '1'
           memory: 1G
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     cap_add:
       - CHOWN
       - SETGID
       - SETUID
+      - DAC_OVERRIDE
 
   pgadmin:
     image: dpage/pgadmin4
