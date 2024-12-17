@@ -82,6 +82,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
     volumes:
       - odoo-db-data:/var/lib/postgresql/data
     expose:

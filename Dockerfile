@@ -12,7 +12,7 @@ RUN mkdir -p /var/lib/odoo /mnt/extra-addons /mnt/extra-addons/moxogo18 /var/log
     && chown -R root:root /var/lib/odoo /mnt/extra-addons /var/log/odoo /etc/odoo \
     && chmod -R 777 /var/lib/odoo /mnt/extra-addons /var/log/odoo /etc/odoo
 
-# Install system dependencies
+# Install system dependencies including gettext-base for envsubst
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nano \
     python3-pip \
@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsasl2-dev \
     libssl-dev \
     python3-psycopg2 \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PostgreSQL client
@@ -34,4 +35,9 @@ RUN apt-get update \
 
 WORKDIR /var/lib/odoo
 
-CMD ["odoo"]
+# Copy and set entrypoint script
+COPY ./config/entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["--config", "/etc/odoo/odoo.conf"]
