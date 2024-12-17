@@ -6,6 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: odoo18
+    user: odoo
     depends_on:
       - db
       - redis
@@ -18,10 +19,23 @@ services:
       - PROMETHEUS_MULTIPROC_DIR=/tmp
     volumes:
       - odoo-web-data:/var/lib/odoo
-      - ./config:/etc/odoo
-      - ./addons:/mnt/extra-addons
-      - ./moxogo18:/mnt/extra-addons/moxogo18
-      - ./logs:/var/log/odoo
+      - type: bind
+        source: ./config
+        target: /etc/odoo
+        read_only: true
+      - type: bind
+        source: ./addons
+        target: /mnt/extra-addons
+      - type: bind
+        source: ./moxogo18
+        target: /mnt/extra-addons/moxogo18
+      - type: bind
+        source: ./logs
+        target: /var/log/odoo
+      # - ./config:/etc/odoo
+      # - ./addons:/mnt/extra-addons
+      # - ./moxogo18:/mnt/extra-addons/moxogo18
+      # - ./logs:/var/log/odoo
     ports:
       - "127.0.0.1:8069:8069"
       - "127.0.0.1:8072:8072"
@@ -54,8 +68,6 @@ services:
       nofile:
         soft: 20000
         hard: 40000
-    cap_drop:
-      - ALL
     cap_add:
       - NET_BIND_SERVICE
       - CHOWN
