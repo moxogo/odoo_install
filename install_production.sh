@@ -15,6 +15,7 @@ POSTGRES_PORT=5432
 POSTGRES_USER=odoo
 POSTGRES_PASSWORD=odoo
 POSTGRES_HOST=db
+ODOO_ADMIN_PASSWD=$(openssl rand -base64 12)
 
 # Installation directory
 INSTALL_DIR="/odoo"
@@ -365,7 +366,10 @@ NGINX_IMAGE=nginx:alpine
 ODOO_PROXY_MODE=true
 REDIS_HOST=redis
 REDIS_PASSWORD=odoo
+ODOO_ADMIN_PASSWD=${ODOO_ADMIN_PASSWD}
 EOL
+        echo "Generated Odoo admin password: ${ODOO_ADMIN_PASSWD}"
+        echo "Please save this password securely!"
     fi
     
     log "Docker Compose files copied successfully"

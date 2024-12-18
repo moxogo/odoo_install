@@ -17,6 +17,7 @@ services:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - ODOO_PROXY_MODE=${ODOO_PROXY_MODE}
+      - ODOO_ADMIN_PASSWD=${ODOO_ADMIN_PASSWD}
       - PROMETHEUS_MULTIPROC_DIR=/tmp
     volumes:
       - odoo-web-data:/var/lib/odoo

@@ -48,5 +48,10 @@ WORKDIR /var/lib/odoo
 COPY ./config/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
+# Add envsubst to handle environment variable substitution
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gettext-base \
+    && rm -rf /var/lib/apt/lists/*
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--config", "/etc/odoo/odoo.conf"]
