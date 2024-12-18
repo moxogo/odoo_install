@@ -75,16 +75,14 @@ services:
   db:
     image: ${POSTGRES_IMAGE}
     container_name: odoo18_db
-    user: postgres
     environment:
       - POSTGRES_DB=postgres
-      - POSTGRES_USER=odoo
-      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_HOST_AUTH_METHOD=md5
+      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - odoo-db-data:/var/lib/postgresql/data
-      - ./config/init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh
     expose:
       - "5432"
     ports:
@@ -132,8 +130,8 @@ services:
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_DB=postgres
-      - POSTGRES_USER=odoo
-      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - SCHEDULE=${BACKUP_SCHEDULE:-@daily}
       - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS:-7}
       - BACKUP_KEEP_WEEKS=${BACKUP_KEEP_WEEKS:-4}
