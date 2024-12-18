@@ -81,12 +81,8 @@ services:
       - POSTGRES_USER=odoo
       - POSTGRES_PASSWORD=odoo
       - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_HOST_AUTH_METHOD=trust
     volumes:
       - odoo-db-data:/var/lib/postgresql/data
-      - ./config/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
-      - ./config/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
-    command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf -c hba_file=/var/lib/postgresql/data/pg_hba.conf
     expose:
       - "5432"
     ports:
@@ -94,7 +90,7 @@ services:
     networks:
       odoo_network:
         aliases:
-          - ${POSTGRES_HOST}
+          - db
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
