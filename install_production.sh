@@ -16,6 +16,35 @@ POSTGRES_PORT=${POSTGRES_PORT:-5432}
 # Installation directory
 INSTALL_DIR="/odoo"
 
+# Required directories
+REQUIRED_DIRS=(
+    "${INSTALL_DIR}/config"
+    "${INSTALL_DIR}/logs"
+    "${INSTALL_DIR}/addons"
+    "${INSTALL_DIR}/backups"
+    "${INSTALL_DIR}/nginx/conf"
+    "${INSTALL_DIR}/nginx/ssl"
+    "${INSTALL_DIR}/nginx/letsencrypt"
+    "${INSTALL_DIR}/moxogo18"
+)
+
+# Required files to copy
+REQUIRED_FILES=(
+    "docker-compose.yml"
+    "Dockerfile"
+    "requirements.txt"
+    "requirements.custom.txt"
+)
+
+# Configuration files
+CONFIG_FILES=(
+    "odoo.conf"
+    "postgresql.conf"
+    "pg_hba.conf"
+    "init-postgres.sh"
+    "nginx.conf"
+)
+
 # Strict error handling
 set -euo pipefail
 IFS=$'\n\t'
@@ -134,18 +163,9 @@ verify_container_configs() {
     fi
     
     # Validate mount points
-    local required_mounts=(
-        "/odoo/config"
-        "/odoo/addons"
-        "/odoo/logs"
-        "/odoo/data"
-        "/odoo/nginx/conf"
-        "/odoo/nginx/ssl"
-    )
-    
-    for mount in "${required_mounts[@]}"; do
-        if [ ! -d "$mount" ]; then
-            error "Required mount point $mount does not exist"
+    for dir in "${REQUIRED_DIRS[@]}"; do
+        if [ ! -d "$dir" ]; then
+            error "Required mount point $dir does not exist"
             exit 1
         fi
     done
@@ -295,92 +315,35 @@ copy_docker_files() {
     log "Copying Docker Compose files..."
     
     local SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    local REQUIRED_FILES=(
-        "docker-compose.yml"
-        "Dockerfile"
-        "requirements.txt"
-        "requirements.custom.txt"
-        ".env.example"
-    )
-    
-    local CONFIG_FILES=(
-        "odoo.conf"
-        "entrypoint.sh"
-        "nginx.conf"
-        "postgresql.conf"
-    )
     
     # Create necessary directories
-    sudo mkdir -p "/odoo/"{config,addons,logs,nginx/{conf,ssl,letsencrypt},data,backup}
-    sudo mkdir -p "/odoo/moxogo18"
-    
-    # Set directory permissions
-    sudo chown -R $USER:$USER "/odoo"
-    sudo chmod -R 755 "/odoo"
-    
-    # Check if required files exist in script directory
-    for file in "${REQUIRED_FILES[@]}"; do
-        if [ ! -f "$SCRIPT_DIR/$file" ]; then
-            error "Required file $file not found in script directory"
-            exit 1
-        fi
+    for dir in "${REQUIRED_DIRS[@]}"; do
+        mkdir -p "$dir"
     done
     
-    # Copy required files with error handling
+    # Copy configuration files
     for file in "${REQUIRED_FILES[@]}"; do
-        if ! sudo cp "$SCRIPT_DIR/$file" "/odoo/$file"; then
-            error "Failed to copy $file to /odoo"
-            exit 1
-        fi
-        # Set proper permissions
-        if ! sudo chown $USER:$USER "/odoo/$file"; then
-            error "Failed to set ownership for /odoo/$file"
-            exit 1
-        fi
-        if ! sudo chmod 640 "/odoo/$file"; then
-            error "Failed to set permissions for /odoo/$file"
-            exit 1
-        fi
+        cp -f "$file" "${INSTALL_DIR}/"
     done
     
-    # Handle configuration files
-    log "Setting up configuration files..."
-    
-    # Copy configuration files to their respective locations
     for file in "${CONFIG_FILES[@]}"; do
-        local src_file="$SCRIPT_DIR/config/$file"
-        case "$file" in
-            "nginx.conf")
-                local dest_file="/odoo/nginx/conf/$file"
-                ;;
-            "postgresql.conf")
-                local dest_file="/odoo/config/$file"
-                ;;
-            *)
-                local dest_file="/odoo/config/$file"
-                ;;
-        esac
-        
-        if [ -f "$src_file" ]; then
-            if ! sudo cp "$src_file" "$dest_file"; then
-                error "Failed to copy $file to $(dirname "$dest_file")"
-                exit 1
-            fi
-            if ! sudo chown $USER:$USER "$dest_file"; then
-                error "Failed to set ownership for $file"
-                exit 1
-            fi
-            if ! sudo chmod 640 "$dest_file"; then
-                error "Failed to set permissions for $file"
-                exit 1
-            fi
-        else
-            warn "Configuration file $file not found at $src_file"
-        fi
+        cp -f "config/$file" "${INSTALL_DIR}/config/"
     done
     
-    # Make entrypoint.sh executable
-    sudo chmod +x "/odoo/config/entrypoint.sh"
+    # Set proper permissions
+    chmod 644 "${INSTALL_DIR}/config/postgresql.conf" "${INSTALL_DIR}/config/pg_hba.conf" "${INSTALL_DIR}/config/odoo.conf"
+    chmod +x "${INSTALL_DIR}/config/init-postgres.sh"
+    
+    # Create .env file if it doesn't exist
+    if [ ! -f "${INSTALL_DIR}/.env" ]; then
+        cat > "${INSTALL_DIR}/.env" << EOL
+NGINX_DOMAIN=${NGINX_DOMAIN}
+CERTBOT_EMAIL=${CERTBOT_EMAIL}
+ODOO_PORT=${ODOO_PORT}
+ODOO_LONGPOLLING_PORT=${ODOO_LONGPOLLING_PORT}
+POSTGRES_PORT=${POSTGRES_PORT}
+EOL
+    fi
     
     log "Docker Compose files copied successfully"
 }
@@ -573,10 +536,12 @@ main() {
 
     # 6. Create directory structure with secure permissions
     log "6. Creating directory structure..."
-    if ! sudo mkdir -p /odoo/{config,addons,logs,nginx/{conf,ssl,letsencrypt},data,backup}; then
-        error "Failed to create directory structure"
-        exit 1
-    fi
+    for dir in "${REQUIRED_DIRS[@]}"; do
+        if ! sudo mkdir -p "$dir"; then
+            error "Failed to create directory structure"
+            exit 1
+        fi
+    done
     
     # Set secure permissions with error handling
     if ! sudo chown -R root:$USER /odoo; then
