@@ -16,10 +16,10 @@ POSTGRES_USER=odoo
 POSTGRES_PASSWORD=odoo
 POSTGRES_HOST=db
 
-# Set a fixed admin password for testing
-ODOO_ADMIN_PASSWD="admin123"
 # Generate random admin password if not set
-# ODOO_ADMIN_PASSWD=$(openssl rand -base64 12)
+ODOO_ADMIN_PASSWD=$(openssl rand -base64 12)
+# Set a fixed admin password for testing
+# ODOO_ADMIN_PASSWD="admin123"
 
 # Save the password to a file for reference
 echo "Odoo Admin Password: ${ODOO_ADMIN_PASSWD}" > "/odoo/odoo_admin_password.txt"
