@@ -15,7 +15,12 @@ POSTGRES_PORT=5432
 POSTGRES_USER=odoo
 POSTGRES_PASSWORD=odoo
 POSTGRES_HOST=db
+# Generate random admin password if not set
 ODOO_ADMIN_PASSWD=$(openssl rand -base64 12)
+
+# Save the password to a file for reference
+echo "Odoo Admin Password: ${ODOO_ADMIN_PASSWD}" > "/odoo/odoo_admin_password.txt"
+chmod 600 "/odoo/odoo_admin_password.txt"
 
 # Installation directory
 INSTALL_DIR="/odoo"
@@ -368,8 +373,10 @@ REDIS_HOST=redis
 REDIS_PASSWORD=odoo
 ODOO_ADMIN_PASSWD=${ODOO_ADMIN_PASSWD}
 EOL
-        echo "Generated Odoo admin password: ${ODOO_ADMIN_PASSWD}"
-        echo "Please save this password securely!"
+        echo -e "\n\033[1;32m=== IMPORTANT: Odoo Admin Password ===\033[0m"
+        echo -e "\033[1;33mPassword: ${ODOO_ADMIN_PASSWD}\033[0m"
+        echo -e "This password has been saved to: ${INSTALL_DIR}/odoo_admin_password.txt"
+        echo -e "Please save this password securely!\n"
     fi
     
     log "Docker Compose files copied successfully"
