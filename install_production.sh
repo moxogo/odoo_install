@@ -1,17 +1,17 @@
 #!/bin/bash
 
 # User configurable variables
-NGINX_DOMAIN=${NGINX_DOMAIN:-"localhost"}
-CERTBOT_EMAIL=${CERTBOT_EMAIL:-"admin@localhost"}
-ODOO_PORT=${ODOO_PORT:-8069}
-ODOO_LONGPOLLING_PORT=${ODOO_LONGPOLLING_PORT:-8072}
-POSTGRES_PORT=${POSTGRES_PORT:-5432}
+# NGINX_DOMAIN=${NGINX_DOMAIN:-"localhost"}
+# CERTBOT_EMAIL=${CERTBOT_EMAIL:-"admin@localhost"}
+# ODOO_PORT=${ODOO_PORT:-8069}
+# ODOO_LONGPOLLING_PORT=${ODOO_LONGPOLLING_PORT:-8072}
+# POSTGRES_PORT=${POSTGRES_PORT:-5432}
 
-# NGINX_DOMAIN=super.moxogo.tech 
-# CERTBOT_EMAIL=wizearch55@gmail.com
-# ODOO_PORT=8069             
-# ODOO_LONGPOLLING_PORT=8072
-# POSTGRES_PORT=5432 
+NGINX_DOMAIN=super.moxogo.tech 
+CERTBOT_EMAIL=wizearch55@gmail.com
+ODOO_PORT=8069             
+ODOO_LONGPOLLING_PORT=8072
+POSTGRES_PORT=5432 
 
 # Installation directory
 INSTALL_DIR="/odoo"
@@ -326,6 +326,15 @@ copy_docker_files() {
         cp -f "$file" "${INSTALL_DIR}/"
     done
     
+    # Clean up any existing config files that might be directories
+    for file in "${CONFIG_FILES[@]}"; do
+        target="${INSTALL_DIR}/config/$file"
+        if [ -d "$target" ]; then
+            rm -rf "$target"
+        fi
+    done
+    
+    # Copy config files
     for file in "${CONFIG_FILES[@]}"; do
         cp -f "config/$file" "${INSTALL_DIR}/config/"
     done
