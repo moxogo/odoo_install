@@ -38,8 +38,8 @@ COPY requirements.txt /tmp/requirements.txt
 COPY requirements.custom.txt /tmp/requirements.custom.txt
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
-    && pip3 install --no-cache-dir -r /tmp/requirements.custom.txt \
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
+    && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt \
     && rm -f /tmp/requirements.txt /tmp/requirements.custom.txt
 
 WORKDIR /var/lib/odoo

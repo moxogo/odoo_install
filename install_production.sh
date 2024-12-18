@@ -627,6 +627,8 @@ main() {
     echo ""
     warn "=== Remember to save these passwords securely! ==="
 }
+    log "Postgres Password (save this): ${POSTGRES_PASSWORD}"
+    log "Admin Password (save this): ${ODOO_ADMIN_PASSWD}"
 
 # Execute main function
 main
