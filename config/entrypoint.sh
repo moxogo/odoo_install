@@ -14,4 +14,4 @@ mv /etc/odoo/odoo.conf.tmp /etc/odoo/odoo.conf
 
 # Start Odoo
 cd /odoo-server
-exec "$@"
+exec python3 -m odoo "$@"
