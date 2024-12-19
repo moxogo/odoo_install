@@ -7,9 +7,9 @@
 # ODOO_LONGPOLLING_PORT=${ODOO_LONGPOLLING_PORT:-8072}
 # POSTGRES_PORT=${POSTGRES_PORT:-5432}
 
-NGINX_DOMAIN=super.moxogo.tech 
+NGINX_DOMAIN=super.moxogo.tech
 CERTBOT_EMAIL=wizearch55@gmail.com
-ODOO_PORT=8069             
+ODOO_PORT=8069
 ODOO_LONGPOLLING_PORT=8072
 POSTGRES_PORT=5432
 POSTGRES_USER=odoo
@@ -503,6 +503,41 @@ EOF
     log "Important: Your passwords are stored in $INSTALL_DIR/.passwords"
     log "Make sure to keep this file secure and backed up"
 }
+
+# Function to check if a command exists
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if Docker is installed
+if ! command_exists docker; then
+  echo "Docker is not installed. Installing Docker..."
+  # Install Docker
+  curl -fsSL https://get.docker.com -o get-docker.sh
+  sh get-docker.sh
+  rm get-docker.sh
+  sudo usermod -aG docker $USER
+  echo "Docker installed successfully."
+else
+  echo "Docker is already installed."
+fi
+
+# Check if Docker Compose is installed
+if ! command_exists docker-compose; then
+  echo "Docker Compose is not installed. Installing Docker Compose..."
+  # Install Docker Compose
+  sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')" -o /usr/local/bin/docker-compose
+  sudo chmod +x /usr/local/bin/docker-compose
+  echo "Docker Compose installed successfully."
+else
+  echo "Docker Compose is already installed."
+fi
+
+# Start Docker service
+sudo systemctl start docker
+sudo systemctl enable docker
+
+echo "Docker and Docker Compose are ready."
 
 # Main installation process
 main() {

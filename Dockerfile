@@ -33,16 +33,27 @@ RUN apt-get update \
         postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
+# Create the /odoo directory
+RUN mkdir /odoo
+
+# Copy Odoo source code to /odoo
+COPY --from=odoo:18 /usr/lib/python3/dist-packages/odoo /odoo
+
+# Set environment variables to point to the new Odoo directory
+ENV ODOO_HOME=/odoo
+ENV PATH=$ODOO_HOME:$PATH
+ENV PYTHONPATH=$ODOO_HOME:$PYTHONPATH
+
 # Copy requirements files
 COPY requirements.txt /tmp/requirements.txt
 COPY requirements.custom.txt /tmp/requirements.custom.txt
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
-    && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt \
+# Install Python dependencies with force-reinstall to avoid conflicts
+RUN pip3 install --no-cache-dir --break-system-packages --force-reinstall -r /tmp/requirements.txt \
+    && pip3 install --no-cache-dir --break-system-packages --force-reinstall -r /tmp/requirements.custom.txt \
     && rm -f /tmp/requirements.txt /tmp/requirements.custom.txt
 
-WORKDIR /var/lib/odoo
+WORKDIR /odoo
 
 # Copy and set entrypoint script
 COPY ./config/entrypoint.sh /
