@@ -56,5 +56,4 @@ WORKDIR /odoo-server
 COPY ./config/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["--config", "/etc/odoo/odoo.conf"]
+CMD ["/entrypoint.sh", "--config", "/etc/odoo/odoo.conf"]
