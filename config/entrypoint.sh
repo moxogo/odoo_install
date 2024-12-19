@@ -1,4 +1,5 @@
 #!/bin/bash
+# Entry point script for Odoo Docker container
 
 # Display the admin password for first-time setup
 if [ -n "${ODOO_ADMIN_PASSWD}" ]; then
@@ -13,3 +14,5 @@ mv /etc/odoo/odoo.conf.tmp /etc/odoo/odoo.conf
 
 # Start Odoo
 exec odoo "$@"
+
+exec "$@"

@@ -56,7 +56,7 @@ RUN pip3 install --no-cache-dir --break-system-packages --force-reinstall -r /tm
 WORKDIR /odoo
 
 # Copy and set entrypoint script
-COPY ./config/entrypoint.sh /
+COPY ./config/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Add envsubst to handle environment variable substitution

@@ -351,6 +351,9 @@ copy_docker_files() {
         cp -f "config/$file" "${INSTALL_DIR}/config/"
     done
     
+    # Ensure entrypoint.sh is copied
+    cp -f "config/entrypoint.sh" "${INSTALL_DIR}/config/entrypoint.sh"
+    
     # Set proper permissions
     chmod 644 "${INSTALL_DIR}/config/postgresql.conf" "${INSTALL_DIR}/config/pg_hba.conf" "${INSTALL_DIR}/config/odoo.conf"
     chmod +x "${INSTALL_DIR}/config/init-postgres.sh"
