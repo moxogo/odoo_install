@@ -8,7 +8,7 @@ ENV PIP_NO_CACHE_DIR=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Create necessary directories and set permissions
-RUN mkdir -p /var/lib/odoo /mnt/extra-addons /mnt/extra-addons/moxogo18 /var/log/odoo /etc/odoo \
+RUN mkdir -p /odoo-server /var/lib/odoo /mnt/extra-addons /mnt/extra-addons/moxogo18 /var/log/odoo /etc/odoo \
     && chown -R root:root /var/lib/odoo /mnt/extra-addons /var/log/odoo /etc/odoo \
     && chmod -R 777 /var/lib/odoo /mnt/extra-addons /var/log/odoo /etc/odoo
 
@@ -33,36 +33,28 @@ RUN apt-get update \
         postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create the /odoo directory
-RUN mkdir /odoo
-
-# Copy Odoo source code to /odoo
-COPY --from=odoo:18 /usr/lib/python3/dist-packages/odoo /odoo
+# Move Odoo source code to /odoo-server
+RUN mv /usr/lib/python3/dist-packages/odoo /odoo-server
 
 # Set environment variables to point to the new Odoo directory
-ENV ODOO_HOME=/odoo
-ENV PATH=$ODOO_HOME:$PATH
-ENV PYTHONPATH=$ODOO_HOME:$PYTHONPATH
+ENV ODOO_ROOT=/odoo-server
+ENV PATH=$ODOO_ROOT:$PATH
+ENV PYTHONPATH=$ODOO_ROOT:$PYTHONPATH
 
 # Copy requirements files
 COPY requirements.txt /tmp/requirements.txt
 COPY requirements.custom.txt /tmp/requirements.custom.txt
 
-# Install Python dependencies with force-reinstall to avoid conflicts
-RUN pip3 install --no-cache-dir --break-system-packages --force-reinstall -r /tmp/requirements.txt \
-    && pip3 install --no-cache-dir --break-system-packages --force-reinstall -r /tmp/requirements.custom.txt \
+# Install Python dependencies
+RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
+    && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt \
     && rm -f /tmp/requirements.txt /tmp/requirements.custom.txt
 
-WORKDIR /odoo
+WORKDIR /odoo-server
 
 # Copy and set entrypoint script
 COPY ./config/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
-# Add envsubst to handle environment variable substitution
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gettext-base \
-    && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--config", "/etc/odoo/odoo.conf"]
