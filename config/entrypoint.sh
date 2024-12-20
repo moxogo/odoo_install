@@ -5,6 +5,8 @@
 envsubst < /etc/odoo/odoo.conf > /etc/odoo/odoo.conf.tmp
 mv /etc/odoo/odoo.conf.tmp /etc/odoo/odoo.conf
 
-# Start Odoo
-cd /odoo-server
-exec python3 -m odoo "$@"
+# Navigate to the directory containing the Odoo package
+cd /usr/lib/python3/dist-packages
+
+# Start Odoo as a module
+exec python3 -m odoo.cli.command "$@"

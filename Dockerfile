@@ -2,11 +2,6 @@ FROM odoo:18
 
 USER root
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PIP_NO_CACHE_DIR=1
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-
 # Create necessary directories and set permissions
 RUN mkdir -p /odoo-server /var/lib/odoo /mnt/extra-addons /mnt/extra-addons/moxogo18 /var/log/odoo /etc/odoo \
     && chown -R root:root /var/lib/odoo /mnt/extra-addons /var/log/odoo /etc/odoo \
@@ -25,12 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     python3-psycopg2 \
     gettext-base \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install PostgreSQL client
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        postgresql-client-16 \
+    postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements files
@@ -42,7 +32,7 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
     && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt \
     && rm -f /tmp/requirements.txt /tmp/requirements.custom.txt
 
-WORKDIR /odoo-server
+WORKDIR /odoo
 
 # Copy and set entrypoint script
 COPY ./config/entrypoint.sh /entrypoint.sh
