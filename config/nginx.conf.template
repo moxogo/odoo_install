@@ -9,7 +9,7 @@ upstream odoochat {
 # Redirect HTTP to HTTPS
 server {
     listen 80;
-    server_name $NGINX_DOMAIN;
+    server_name ${NGINX_DOMAIN};
     
     # Certbot challenges
     location /.well-known/acme-challenge/ {
@@ -27,12 +27,11 @@ server {
 server {
     listen 443 ssl;
     http2 on;
-    server_name $NGINX_DOMAIN;
+    server_name ${NGINX_DOMAIN};
 
     # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/$NGINX_DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$NGINX_DOMAIN/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/$NGINX_DOMAIN/chain.pem;
+    ssl_certificate /etc/letsencrypt/live/${NGINX_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${NGINX_DOMAIN}/privkey.pem;
     
     # SSL parameters
     ssl_session_timeout 1d;
