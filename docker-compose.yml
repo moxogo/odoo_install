@@ -70,6 +70,7 @@ services:
         max-file: "3"
         compress: "true"
         tag: "{{.Name}}"
+    command: -- --config=/etc/odoo/odoo.conf
 
   db:
     image: ${POSTGRES_IMAGE}
