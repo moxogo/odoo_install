@@ -31,11 +31,3 @@ COPY requirements.custom.txt /tmp/requirements.custom.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
     && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.custom.txt \
     && rm -f /tmp/requirements.txt /tmp/requirements.custom.txt
-
-WORKDIR /odoo
-
-# Copy and set entrypoint script
-COPY ./config/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
