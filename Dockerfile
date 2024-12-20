@@ -33,14 +33,6 @@ RUN apt-get update \
         postgresql-client-16 \
     && rm -rf /var/lib/apt/lists/*
 
-# Move Odoo source code to /odoo-server
-RUN mv /usr/lib/python3/dist-packages/odoo /odoo-server
-
-# Set environment variables to point to the new Odoo directory
-ENV ODOO_ROOT=/odoo-server
-ENV PATH=$ODOO_ROOT:$PATH
-ENV PYTHONPATH=$ODOO_ROOT:$PYTHONPATH
-
 # Copy requirements files
 COPY requirements.txt /tmp/requirements.txt
 COPY requirements.custom.txt /tmp/requirements.custom.txt
@@ -57,5 +49,3 @@ COPY ./config/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-
-CMD ["/entrypoint.sh", "--config", "/etc/odoo/odoo.conf"]
