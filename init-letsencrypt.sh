@@ -17,6 +17,7 @@ docker-compose up -d nginx
 docker-compose run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
+    --force-renewal \
     --email ${ADMIN_EMAIL} \
     --agree-tos \
     --no-eff-email \

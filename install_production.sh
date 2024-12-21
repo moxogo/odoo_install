@@ -512,6 +512,46 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Function to copy shell scripts to production
+copy_shell_scripts() {
+    echo "Copying shell scripts to production..."
+    
+    # Create scripts directory if it doesn't exist
+    mkdir -p "$INSTALL_DIR/scripts"
+    
+    # List of scripts to copy
+    local scripts=(
+        "init-letsencrypt.sh"
+        "security_audit.sh"
+        "post_deploy.sh"
+        "monitor.sh"
+        "harden_ubuntu.sh"
+        "deploy.sh"
+        "cleanup_docker.sh"
+        "cleanup.sh"
+        "backup.sh"
+    )
+    
+    # Copy each script and make it executable
+    for script in "${scripts[@]}"; do
+        if [ -f "$script" ]; then
+            cp "$script" "$INSTALL_DIR/scripts/"
+            chmod +x "$INSTALL_DIR/scripts/$script"
+            echo "Copied and made executable: $script"
+        else
+            echo "Warning: Script not found: $script"
+        fi
+    done
+    
+    # Copy config scripts if they exist
+    if [ -d "config" ]; then
+        mkdir -p "$INSTALL_DIR/config"
+        cp config/*.sh "$INSTALL_DIR/config/" 2>/dev/null || true
+        chmod +x "$INSTALL_DIR/config/"*.sh 2>/dev/null || true
+        echo "Copied config scripts"
+    fi
+}
+
 # Check if Docker is installed
 if ! command_exists docker; then
   echo "Docker is not installed. Installing Docker..."
@@ -661,6 +701,9 @@ main() {
     # sudo ufw allow 8069/tcp
     # sudo ufw allow 8072/tcp
     # echo "y" | sudo ufw enable
+
+    # 12. Copy shell scripts to production
+    copy_shell_scripts
 
     # Final setup
     log "=== Installation Complete ==="
