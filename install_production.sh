@@ -7,9 +7,9 @@
 # ODOO_LONGPOLLING_PORT=${ODOO_LONGPOLLING_PORT:-8072}
 # POSTGRES_PORT=${POSTGRES_PORT:-5432}
 
-NGINX_DOMAIN=mxg18.mxgsoft.com
+NGINX_DOMAIN=demo.moxogo.com
 CERTBOT_EMAIL=wizearch55@gmail.com
-ODOO_PORT=8069
+ODOO_PORT=8080
 ODOO_LONGPOLLING_PORT=8072
 POSTGRES_PORT=5432
 POSTGRES_USER=odoo
@@ -713,6 +713,7 @@ main() {
     echo "   sudo certbot certonly --webroot -w /odoo/nginx/letsencrypt -d your-domain.com"
     echo "3. Start the services:"
     echo "   cd /odoo && docker compose up -d"
+    echo "docker compose -f /odoo/docker-compose.yml up -d"
     echo "4. Check the logs:"
     echo "   docker compose logs -f"
     echo ""
