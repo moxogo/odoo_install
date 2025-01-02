@@ -225,3 +225,77 @@ server {
 #     gzip_min_length 1000;
 #     gzip_proxied expired no-cache no-store private auth;
 # }
+
+
+upstream odoo {
+    server odoo:8069;
+}
+
+upstream odoochat {
+    server odoo:8072;
+}
+
+# Global settings
+proxy_headers_hash_max_size 512;
+proxy_headers_hash_bucket_size 128;
+client_max_body_size 500M;
+proxy_read_timeout 720s;
+proxy_connect_timeout 720s;
+proxy_send_timeout 720s;
+
+# Prevent duplicate headers globally
+proxy_hide_header Date;
+proxy_hide_header Server;
+proxy_hide_header X-Powered-By;
+
+# Basic HTTP server for initial setup
+server {
+    listen 80;
+    server_name hub.mxgsoft.com moxogo.com;
+
+    # Certbot challenge location
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Redirect to HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS Server for first domain
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name hub.mxgsoft.com;
+
+    ssl_certificate /etc/letsencrypt/live/hub.mxgsoft.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/hub.mxgsoft.com/privkey.pem;
+
+    # Include SSL settings
+    include /etc/nginx/conf.d/ssl_settings.inc;
+    
+    # Include location configurations
+    include /etc/nginx/conf.d/locations.inc;
+
+    # Basic compression
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript;
+}
+
+# HTTPS Server for second domain
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name moxogo.com;
+
+    ssl_certificate /etc/letsencrypt/live/moxogo.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/moxogo.com/privkey.pem;
+
+    # Include same SSL and security settings as above
+    include /etc/nginx/conf.d/ssl_settings.inc;
+    
+    # Include same locations as above
+    include /etc/nginx/conf.d/locations.inc;
+}
