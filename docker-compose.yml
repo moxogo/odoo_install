@@ -205,10 +205,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./config/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./config/ssl_settings.inc:/etc/nginx/conf.d/ssl_settings.inc:ro
-      - ./config/locations.inc:/etc/nginx/conf.d/locations.inc:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./config/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./config/ssl_settings.inc:/etc/nginx/conf.d/ssl_settings.inc
+      - ./config/locations.inc:/etc/nginx/conf.d/locations.inc
+      - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     networks:
       odoo_network:
