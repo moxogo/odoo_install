@@ -1,6 +1,5 @@
 # Global proxy settings
-proxy_buffering off;
-proxy_ignore_headers "X-Accel-Expires" "Expires" "Cache-Control" "Set-Cookie" "Date" "Server";
+proxy_ignore_headers "X-Accel-Expires" "Expires" "Cache-Control" "Set-Cookie" "Server";
 proxy_hide_header Date;
 proxy_hide_header Server;
 proxy_hide_header X-Powered-By;
@@ -14,6 +13,7 @@ location / {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
 }
 
 # Websocket support
@@ -22,12 +22,14 @@ location /websocket {
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
+    proxy_buffering off;
 }
 
 # Longpolling support
 location /longpolling {
     proxy_pass http://odoochat;
     proxy_http_version 1.1;
+    proxy_buffering off;
 }
 
 # Static files
