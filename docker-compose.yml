@@ -197,7 +197,7 @@ services:
           memory: 1G
 
   nginx:
-    image: nginx:alpine
+    image: nginx:latest
     container_name: odoo18_nginx
     depends_on:
       - odoo

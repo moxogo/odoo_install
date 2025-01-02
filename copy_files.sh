@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Define the source and destination directories
-SOURCE_DIRECTORY="~/odoo_install"
-DESTINATION_DIRECTORY="/odoo/"
+SOURCE_DIRECTORY="$HOME/odoo_install"
+DESTINATION_DIRECTORY="/odoo"
 
 # List of files to copy (as per the provided format)
-FILES_TO_COPY=(
-    "config/locations.inc"
-    "config/nginx.conf"
-    "docker-compose.yml"
-)
+# Get the latest changes of files from the current Git commit
+LATEST_CHANGES=$(git diff-tree --no-commit-id --name-only -r HEAD)
+
+# Split the output into an array
+read -r -a FILES_TO_COPY <<< "$LATEST_CHANGES"
 
 # Function to copy files, creating necessary directories
 copy_files() {
