@@ -1,5 +1,5 @@
 # Global proxy settings
-proxy_ignore_headers "X-Accel-Expires" "Expires" "Cache-Control" "Set-Cookie" "Server";
+proxy_ignore_headers X-Accel-Expires Expires Cache-Control Set-Cookie;
 proxy_hide_header Date;
 proxy_hide_header Server;
 proxy_hide_header X-Powered-By;
@@ -14,6 +14,11 @@ location / {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_buffering off;
+
+    # Hide headers
+    proxy_hide_header Date;
+    proxy_hide_header Server;
+    proxy_hide_header X-Powered-By;
 }
 
 # Websocket support
