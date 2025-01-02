@@ -6,8 +6,15 @@ DESTINATION_DIRECTORY="/odoo"
 
 # List of files to copy (as per the provided format)
 # Get the latest changes of files from the current Git pull
-LATEST_CHANGES=$(git pull --no-commit | grep "Copying" | cut -d' ' -f2- | sed -e 's/^ *//g' -e 's/ *$//g')
-echo "Latest changes: ${LATEST_CHANGES[@]}"
+# LATEST_CHANGES=$(git pull --no-commit | grep "Copying" | cut -d' ' -f2- | sed -e 's/^ *//g' -e 's/ *$//g')
+# echo "Latest changes: ${LATEST_CHANGES[@]}"
+
+LATEST_CHANGES=(
+    "docker-compose.yml"
+    "config/nginx.conf"
+    "config/main.conf"
+    "copy_files.sh"
+  )
 
 # Split the output into an array
 read -r -a FILES_TO_COPY <<< "$LATEST_CHANGES"

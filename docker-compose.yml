@@ -203,6 +203,7 @@ services:
       - odoo
     volumes:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/main.conf:/etc/nginx/conf.d/main.conf:ro
       - ./config/locations.inc:/etc/nginx/conf.d/locations.inc:ro
       - ./config/ssl_settings.inc:/etc/nginx/conf.d/ssl_settings.inc:ro
       - ./certbot/conf:/etc/letsencrypt:ro
